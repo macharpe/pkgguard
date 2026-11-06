@@ -1,0 +1,30 @@
+export interface Env {
+  PKG_INDEX: KVNamespace;
+  DB: D1Database;
+  OSV_API_TIMEOUT_MS: string;
+  NEGATIVE_CACHE_TTL_S: string;
+  /** Only the exact string "true" blocks. Anything else is observe-only. */
+  ENFORCE: string;
+}
+
+export interface Settings {
+  enforce: boolean;
+  /** Zero disables the live OSV lookup. */
+  osvTimeoutMs: number;
+  cacheTtlSeconds: number;
+}
+
+const KV_MIN_TTL_SECONDS = 60;
+
+function int(raw: string | undefined, fallback: number): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+export function readSettings(env: Pick<Env, "OSV_API_TIMEOUT_MS" | "NEGATIVE_CACHE_TTL_S" | "ENFORCE">): Settings {
+  return {
+    enforce: env.ENFORCE === "true",
+    osvTimeoutMs: int(env.OSV_API_TIMEOUT_MS, 400),
+    cacheTtlSeconds: Math.max(KV_MIN_TTL_SECONDS, int(env.NEGATIVE_CACHE_TTL_S, 3600)),
+  };
+}

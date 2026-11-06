@@ -1,7 +1,7 @@
 // Committed template: placeholder IDs only. Real values live in .deploy.env;
 // `npm run deploy:config` writes the gitignored wrangler.local.jsonc used for deploys.
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "pkgguard-filter",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-06",

@@ -4,18 +4,19 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "workers/*"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p scripts --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p scripts --noEmit && tsc -p workers/filter --noEmit",
     "test:coverage": "vitest run --coverage",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "deploy:config:filter": "tsx scripts/generate-deploy-config.ts filter",
-    "deploy:filter": "npm run deploy:config:filter && wrangler deploy -c workers/filter/wrangler.local.jsonc"
+    "deploy:filter": "npm run deploy:config:filter && env -u CLOUDFLARE_API_TOKEN wrangler deploy -c workers/filter/wrangler.local.jsonc"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
@@ -24,6 +25,7 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0",
+    "wrangler": "^4.158.0",
     "yauzl": "^3.4.0"
   }
 }

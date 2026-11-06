@@ -26,6 +26,11 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - Workflow step results are capped at **1 MiB**. Return counts from steps, never record arrays.
 - Never export `CLOUDFLARE_API_TOKEN`. Wrangler reserves it and will abandon its OAuth session.
 - `workers_dev` and `preview_urls` stay `false` on the filter Worker.
+- `ENFORCE` blocks only when it is exactly the string `"true"`. With any other value the filter is observe-only, and a would-be block is recorded as `flagged`, never `blocked`.
+- `Decision.block` is policy; whether a download is stopped is `block && ENFORCE`. Keep those two separate.
+- The live OSV lookup runs only on an index miss, and an incomplete answer (pagination, malformed records) is never cached.
+- Resolve `context.identity()` before returning from `handle`. The context's RPC stubs are not guaranteed to outlive the call, so it cannot be deferred into `waitUntil`.
+- Call the global `fetch` through a wrapper, never as a stored property: workerd throws Illegal invocation otherwise.
 - Deleting the filter Worker does **not** disable a live Forward policy; matching requests then return 500. Update or delete the policy first.
 - Gateway only classifies a package download if the registry host is TLS-decrypted. A Do Not Inspect rule covering the registry's app silently disables enforcement for that ecosystem.
 - Real account IDs, hostnames and secrets never enter a tracked file. Edit `wrangler.jsonc` (placeholders), never `wrangler.local.jsonc` (generated). Every placeholder is distinct and format-valid; adding a new one means adding it to `scripts/lib/deploy-config.ts` and to the worker's expected counts there.
@@ -37,12 +42,12 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm install` | Install the workspace |
 | `npm test` | Full test suite — never filter |
 | `npm run test:coverage` | Same, with v8 coverage |
-| `npm run typecheck` | `tsc --noEmit` over `packages/core` and `scripts` |
+| `npm run typecheck` | `tsc --noEmit` over `packages/core`, `scripts` and `workers/filter` |
 | `npm run bootstrap -- download` | Fetch the npm and PyPI OSV zips into `scripts/data/` (gitignored) |
 | `npm run bootstrap -- generate [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files |
 | `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
-| `npm run deploy:filter` | Generate the config, then `wrangler deploy` |
+| `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
 
 _TBD:_ `terraform -chdir=terraform plan` arrives with its milestone.
 
@@ -59,7 +64,17 @@ packages/core/            pure TS, no Workers APIs
 
 `scripts/` holds the one-off bootstrap (`bootstrap.ts`) and the deploy-config generator (`generate-deploy-config.ts`); shared code is in `scripts/lib/`. `workers/<name>/wrangler.jsonc` is the committed template with placeholder IDs. `migrations/0001_init.sql` is the D1 schema.
 
-_TBD:_ `workers/filter/src`, `workers/admin`, `terraform`.
+```
+workers/filter/           pkgguard-filter
+  src/index.ts              GatewayMiddleware: parse, decide, record, block or next()
+  src/decide.ts             overrides -> KV index -> live OSV; returns a Decision
+  src/osv-client.ts         api.osv.dev query with a timeout
+  src/detections.ts         D1 insert
+  src/page.ts               403 coaching page
+  test/                     Workers-runtime tests: real KV, real D1 with the migration applied
+```
+
+_TBD:_ `workers/admin`, `terraform`.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 
