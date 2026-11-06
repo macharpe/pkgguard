@@ -4,7 +4,8 @@
  * import, once the provider supports it.
  */
 
-export const RULE_NAME = "PkgGuard: forward package downloads to pkgguard-filter";
+/** Follows the account convention: <FILTER>-<Action>: <description> [<family>]. */
+export const RULE_NAME = "HTTP-Forward: npm and PyPI downloads to PkgGuard [Package Registry Security]";
 export const WORKER_NAME = "pkgguard-filter";
 export const DEFAULT_PRECEDENCE = 47_000;
 /** The static pkg.* demo policies run up to 46500 and must keep winning. */
