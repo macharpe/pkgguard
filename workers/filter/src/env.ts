@@ -5,6 +5,8 @@ export interface Env {
   NEGATIVE_CACHE_TTL_S: string;
   /** Only the exact string "true" blocks. Anything else is observe-only. */
   ENFORCE: string;
+  /** Secret. A Google Chat incoming-webhook URL; alerts are skipped when it is absent. */
+  GCHAT_WEBHOOK?: string | undefined;
 }
 
 export interface Settings {

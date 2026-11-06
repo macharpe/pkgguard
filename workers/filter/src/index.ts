@@ -1,7 +1,8 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { GatewayMiddlewareContext, GatewayMiddlewareNext } from "@cloudflare/zt-types";
 import { parsePackageUrl, type ParsedPackage } from "@pkgguard/core";
-import { decide, type Decision, type DecideDeps } from "./decide.js";
+import { decide, fullName, type Decision, type DecideDeps } from "./decide.js";
+import { maybeAlertMalware } from "./alert.js";
 import { recordDetection } from "./detections.js";
 import { readSettings, type Env } from "./env.js";
 import { blockPage } from "./page.js";
@@ -71,6 +72,22 @@ export class GatewayMiddleware extends WorkerEntrypoint<Env> {
         this.env.PKG_INDEX.put(decision.cache.key, JSON.stringify(decision.cache.value), {
           expirationTtl: settings.cacheTtlSeconds,
         }),
+      );
+    }
+    if (decision.block) {
+      pending.push(
+        maybeAlertMalware(
+          { kv: this.env.PKG_INDEX, fetch: deps.fetch, webhook: this.env.GCHAT_WEBHOOK },
+          {
+            ecosystem: pkg.ecosystem,
+            name: fullName(pkg),
+            version: pkg.version,
+            user: email,
+            blocked: blocking,
+            reason: decision.reason === "override" ? "override" : "osv-malware",
+            osvIds: decision.osvIds,
+          },
+        ),
       );
     }
     for (const work of pending) {
