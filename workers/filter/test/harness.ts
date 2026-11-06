@@ -21,11 +21,13 @@ export interface Detection {
   user_email: string | null;
   src_ip: string | null;
   source: string;
+  reference: string | null;
 }
 
 export interface RunOptions {
   env?: Partial<Env>;
   identity?: () => Promise<{ email?: string } | null>;
+  headers?: Record<string, string>;
 }
 
 export function gatewayContext(identity?: RunOptions["identity"]): GatewayMiddlewareContext {
@@ -47,14 +49,14 @@ export async function run(url: string, options: RunOptions = {}) {
   const middleware = new GatewayMiddleware(ctx, { ...env, ...options.env } as Env);
   const upstream = new Response("upstream-bytes", { status: 200 });
   const next = vi.fn(async (_request: Request) => upstream);
-  const response = await middleware.handle(new Request(url), gatewayContext(options.identity), next);
+  const response = await middleware.handle(new Request(url, { headers: options.headers ?? {} }), gatewayContext(options.identity), next);
   await waitOnExecutionContext(ctx);
   return { response, next, upstream };
 }
 
 export async function detections(): Promise<Detection[]> {
   const { results } = await env.DB.prepare(
-    "SELECT ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source FROM detections ORDER BY id",
+    "SELECT ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source, reference FROM detections ORDER BY id",
   ).all<Detection>();
   return results;
 }

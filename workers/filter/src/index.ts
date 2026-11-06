@@ -1,11 +1,11 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { GatewayMiddlewareContext, GatewayMiddlewareNext } from "@cloudflare/zt-types";
-import { parsePackageUrl, type ParsedPackage } from "@pkgguard/core";
+import { newReference, parsePackageUrl, type ParsedPackage } from "@pkgguard/core";
 import { decide, fullName, type Decision, type DecideDeps } from "./decide.js";
 import { maybeAlertMalware } from "./alert.js";
 import { recordDetection } from "./detections.js";
 import { readSettings, type Env } from "./env.js";
-import { blockPage } from "./page.js";
+import { blockResponse } from "./page.js";
 
 const IDENTITY_TIMEOUT_MS = 250;
 
@@ -64,8 +64,10 @@ export class GatewayMiddleware extends WorkerEntrypoint<Env> {
     const verdict = decision.block && !settings.enforce ? "flagged" : decision.verdict;
 
     const now = deps.now();
+    // One code ties the page the developer sees, the Chat alert and the detection row together.
+    const reference = decision.block ? newReference((bytes) => (crypto.getRandomValues(bytes), bytes)) : null;
     const pending: Promise<unknown>[] = [
-      recordDetection(this.env.DB, pkg, decision, verdict, { email, srcIp: context.srcIp ?? null }, now),
+      recordDetection(this.env.DB, pkg, decision, verdict, { email, srcIp: context.srcIp ?? null }, now, reference),
     ];
     if (decision.cache) {
       pending.push(
@@ -86,6 +88,7 @@ export class GatewayMiddleware extends WorkerEntrypoint<Env> {
             blocked: blocking,
             reason: decision.reason === "override" ? "override" : "osv-malware",
             osvIds: decision.osvIds,
+            reference,
           },
         ),
       );
@@ -96,7 +99,7 @@ export class GatewayMiddleware extends WorkerEntrypoint<Env> {
       );
     }
 
-    return blocking ? blockPage(pkg, decision) : next(request);
+    return blocking ? blockResponse(request, pkg, decision, reference, this.env.SUPPORT_CONTACT) : next(request);
   }
 }
 

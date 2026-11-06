@@ -5,6 +5,8 @@ export interface Env {
   NEGATIVE_CACHE_TTL_S: string;
   /** Only the exact string "true" blocks. Anything else is observe-only. */
   ENFORCE: string;
+  /** Where a blocked developer is told to ask for help. Plain text; falls back to a generic line. */
+  SUPPORT_CONTACT?: string | undefined;
   /** Secret. A Google Chat incoming-webhook URL; alerts are skipped when it is absent. */
   GCHAT_WEBHOOK?: string | undefined;
 }

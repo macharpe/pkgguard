@@ -8,8 +8,8 @@ export interface DetectionContext {
 }
 
 const INSERT =
-  "INSERT INTO detections (ts, ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source) " +
-  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  "INSERT INTO detections (ts, ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source, reference) " +
+  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 export async function recordDetection(
   db: Pick<D1Database, "prepare">,
@@ -18,6 +18,7 @@ export async function recordDetection(
   verdict: DetectionVerdict,
   who: DetectionContext,
   now: string,
+  reference: string | null = null,
 ): Promise<void> {
   await db
     .prepare(INSERT)
@@ -33,6 +34,7 @@ export async function recordDetection(
       who.email,
       who.srcIp,
       decision.source,
+      reference,
     )
     .run();
 }

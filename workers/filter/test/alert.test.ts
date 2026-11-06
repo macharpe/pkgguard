@@ -140,6 +140,15 @@ describe("the filter and its malware alerts", () => {
     expect(posted[0]?.text).toContain("*blocked*");
     expect(posted[0]?.text).not.toContain("not blocked");
   });
+  it("puts the same reference in the alert as on the page and in the detection row", async () => {
+    const { posted } = chat();
+    const { response } = await run(tarball("event-stream", "3.3.6"), { env: { ...withHook, ENFORCE: "true" } });
+    await settle();
+    const reference = response.headers.get("x-pkgguard-reference") ?? "";
+    expect(reference).toMatch(/^PG-/);
+    expect(posted[0]?.text).toContain(`Reference: \`${reference}\``);
+    expect((await detections())[0]?.reference).toBe(reference);
+  });
   it("sends one alert per user for repeated downloads of the same package", async () => {
     const { posted } = chat();
     for (let i = 0; i < 4; i++) {
