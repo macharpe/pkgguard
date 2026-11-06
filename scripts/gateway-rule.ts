@@ -3,7 +3,7 @@
  *   tsx scripts/gateway-rule.ts <status|create|enable|disable|delete>
  *
  * `create` always makes the rule disabled. Credentials come from the environment (or .deploy.env):
- * TF_VAR_cloudflare_api_token, PKGGUARD_ACCOUNT_ID, PKGGUARD_DEMO_EMAILS.
+ * TF_VAR_cloudflare_api_token, PKGGUARD_ACCOUNT_ID, PKGGUARD_SCOPE (emails and/or @domain entries).
  * Optional: PKGGUARD_FORWARD_PRECEDENCE (default 47000).
  */
 import { pathToFileURL } from "node:url";
@@ -17,15 +17,16 @@ import {
   diffRule,
   findRule,
   findWorkerId,
-  parseEmails,
+  parseScope,
   type GatewayRule,
+  type Scope,
 } from "./lib/gateway-rule.js";
 
 export const COMMANDS = ["status", "create", "enable", "disable", "delete"] as const;
 export type Command = (typeof COMMANDS)[number];
 
 export interface Config {
-  emails: string[];
+  scope: Scope;
   precedence: number;
 }
 
@@ -37,7 +38,7 @@ export async function execute(command: Command, api: Api, config: Config, log: (
   const resolveWorker = async (): Promise<string> =>
     findWorkerId(await api.call<Array<{ id: string; name: string }>>("GET", "/workers/workers"));
   const desired = async (enabled: boolean) =>
-    buildPayload({ workerId: await resolveWorker(), emails: config.emails, precedence: config.precedence, enabled });
+    buildPayload({ workerId: await resolveWorker(), scope: config.scope, precedence: config.precedence, enabled });
 
   switch (command) {
     case "status": {
@@ -76,7 +77,7 @@ export async function execute(command: Command, api: Api, config: Config, log: (
 export function loadConfig(env: Record<string, string>): Config {
   const raw = env["PKGGUARD_FORWARD_PRECEDENCE"];
   return {
-    emails: parseEmails(env["PKGGUARD_DEMO_EMAILS"] ?? ""),
+    scope: parseScope(env["PKGGUARD_SCOPE"] ?? ""),
     precedence: raw === undefined ? DEFAULT_PRECEDENCE : Number(raw),
   };
 }
@@ -88,7 +89,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(2);
   }
   try {
-    const required = loadDeployEnv(["TF_VAR_cloudflare_api_token", "PKGGUARD_ACCOUNT_ID", "PKGGUARD_DEMO_EMAILS"]);
+    const required = loadDeployEnv(["TF_VAR_cloudflare_api_token", "PKGGUARD_ACCOUNT_ID", "PKGGUARD_SCOPE"]);
     const optional = process.env["PKGGUARD_FORWARD_PRECEDENCE"];
     const config = loadConfig({ ...required, ...(optional ? { PKGGUARD_FORWARD_PRECEDENCE: optional } : {}) });
     const api = new CloudflareApi(required["PKGGUARD_ACCOUNT_ID"] as string, required["TF_VAR_cloudflare_api_token"] as string);

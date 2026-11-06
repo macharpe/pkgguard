@@ -12,11 +12,19 @@ export const DEFAULT_PRECEDENCE = 47_000;
 export const MIN_PRECEDENCE = 46_501;
 
 const EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+/** Lowercase labels of letters, digits and inner hyphens, at least two of them. Nothing here is a regex metacharacter except the dot. */
+const DOMAIN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
 const WORKER_ID = /^[0-9a-f]{32}$/;
+
+/** Whose traffic the rule applies to: these exact addresses, and everyone at these domains. */
+export interface Scope {
+  emails: readonly string[];
+  domains: readonly string[];
+}
 
 export interface RuleInput {
   workerId: string;
-  emails: readonly string[];
+  scope: Scope;
   precedence: number;
   enabled: boolean;
 }
@@ -37,22 +45,45 @@ export interface GatewayRule extends RulePayload {
   id: string;
 }
 
-export function parseEmails(raw: string): string[] {
-  const emails = raw
+/**
+ * Entries are an email address, or `@domain.tld` for everyone at that domain. The rule is never unscoped: an empty
+ * value is an error, so a blank variable can never expose a whole tenant by accident.
+ */
+export function parseScope(raw: string): Scope {
+  const entries = raw
     .split(",")
     .map((e) => e.trim())
     .filter((e) => e !== "");
-  if (emails.length === 0) throw new Error("PKGGUARD_DEMO_EMAILS must list at least one email: the rule is never unscoped");
-  const bad = emails.filter((e) => !EMAIL.test(e));
-  if (bad.length > 0) throw new Error(`PKGGUARD_DEMO_EMAILS has an invalid entry: ${JSON.stringify(bad[0])}`);
-  return [...new Set(emails.map((e) => e.toLowerCase()))].sort();
+  if (entries.length === 0) throw new Error("PKGGUARD_SCOPE must list at least one email or @domain: the rule is never unscoped");
+  const emails: string[] = [];
+  const domains: string[] = [];
+  for (const entry of entries) {
+    if (entry.startsWith("@")) {
+      const domain = entry.slice(1).toLowerCase();
+      if (!DOMAIN.test(domain)) throw new Error(`PKGGUARD_SCOPE has an invalid entry: ${JSON.stringify(entry)}`);
+      domains.push(domain);
+    } else {
+      if (!EMAIL.test(entry)) throw new Error(`PKGGUARD_SCOPE has an invalid entry: ${JSON.stringify(entry)}`);
+      emails.push(entry.toLowerCase());
+    }
+  }
+  return { emails: [...new Set(emails)].sort(), domains: [...new Set(domains)].sort() };
 }
 
-/** Renders `identity.email in {"a@x" "b@y"}`. Emails are validated first, so nothing can break out of a quoted string. */
-export function identityExpression(emails: readonly string[]): string {
-  if (emails.length === 0) throw new Error("identity expression needs at least one email");
-  for (const email of emails) if (!EMAIL.test(email)) throw new Error(`invalid email ${JSON.stringify(email)}`);
-  return `identity.email in {${emails.map((e) => `"${e}"`).join(" ")}}`;
+/**
+ * Renders the Gateway expression. A domain becomes an anchored, case-insensitive match whose local part cannot
+ * contain `@`, so `x@evil.example.com` and `a@b@example.com` do not match. Dots are written `[.]`, not `\\.`, so no
+ * backslash has to survive Gateway's string parsing. Everything is validated again here, so nothing can break out of
+ * a quoted string even when this is called directly.
+ */
+export function identityExpression(scope: Scope): string {
+  if (scope.emails.length === 0 && scope.domains.length === 0) throw new Error("identity expression needs at least one email or domain");
+  for (const email of scope.emails) if (!EMAIL.test(email)) throw new Error(`invalid email ${JSON.stringify(email)}`);
+  for (const domain of scope.domains) if (!DOMAIN.test(domain)) throw new Error(`invalid domain ${JSON.stringify(domain)}`);
+  const clauses: string[] = [];
+  if (scope.emails.length > 0) clauses.push(`identity.email in {${scope.emails.map((e) => `"${e}"`).join(" ")}}`);
+  for (const domain of scope.domains) clauses.push(`identity.email matches "(?i)^[^@]+@${domain.replace(/\./g, "[.]")}$"`);
+  return clauses.join(" or ");
 }
 
 export function buildPayload(input: RuleInput): RulePayload {
@@ -68,7 +99,7 @@ export function buildPayload(input: RuleInput): RulePayload {
     action: "forward",
     filters: ["http"],
     traffic: 'pkg.ecosystem in {"npm" "pypi"}',
-    identity: identityExpression(input.emails),
+    identity: identityExpression(input.scope),
     rule_settings: { forward: { worker_id: input.workerId } },
   };
 }

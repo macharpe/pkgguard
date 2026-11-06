@@ -9,24 +9,32 @@ import {
   diffRule,
   findWorkerId,
   identityExpression,
-  parseEmails,
+  parseScope,
   type GatewayRule,
 } from "../lib/gateway-rule.js";
 import { execute, loadConfig, type Config } from "../gateway-rule.js";
 
 const WORKER_ID = "a".repeat(32);
-const EMAILS = ["demo@example.com"];
+const SCOPE = { emails: ["demo@example.com"], domains: [] as string[] };
 
-describe("parseEmails", () => {
-  it("trims, lowercases, de-duplicates and sorts", () => {
-    expect(parseEmails(" B@x.com, a@x.com ,A@X.com")).toEqual(["a@x.com", "b@x.com"]);
+describe("parseScope", () => {
+  it("trims, lowercases, de-duplicates and sorts emails", () => {
+    expect(parseScope(" B@x.com, a@x.com ,A@X.com")).toEqual({ emails: ["a@x.com", "b@x.com"], domains: [] });
+  });
+  it("reads @domain entries as everyone at that domain", () => {
+    expect(parseScope("@Example.com")).toEqual({ emails: [], domains: ["example.com"] });
+    expect(parseScope("@b.example.com, @a.example.com,@A.example.com")).toEqual({ emails: [], domains: ["a.example.com", "b.example.com"] });
+  });
+  it("mixes the two", () => {
+    expect(parseScope("@example.com, ops@partner.example")).toEqual({ emails: ["ops@partner.example"], domains: ["example.com"] });
   });
   it("trims surrounding whitespace, newlines included, so none reaches the expression", () => {
-    expect(parseEmails("a@x.com\n")).toEqual(["a@x.com"]);
+    expect(parseScope("a@x.com\n")).toEqual({ emails: ["a@x.com"], domains: [] });
+    expect(parseScope("@x.com\n")).toEqual({ emails: [], domains: ["x.com"] });
   });
-  it("refuses an empty list, because the rule is never unscoped", () => {
-    expect(() => parseEmails("")).toThrow(/at least one/);
-    expect(() => parseEmails(" , ")).toThrow(/at least one/);
+  it("refuses an empty value, because the rule is never unscoped", () => {
+    expect(() => parseScope("")).toThrow(/at least one/);
+    expect(() => parseScope(" , ")).toThrow(/at least one/);
   });
   it.each([
     'a@x.com" "evil@y.com',
@@ -37,23 +45,84 @@ describe("parseEmails", () => {
     '"a@x.com"',
     "a@x.com\nb@y.com",
     "{a@x.com",
+    "@",
+    "@com",
+    "@*.example.com",
+    "@.example.com",
+    "@example.com.",
+    "@exa..mple.com",
+    "@-example.com",
+    "@example-.com",
+    "@exa mple.com",
+    '@example.com"',
+    "@example.com|evil.com",
+    "@(a|b).com",
+    "@example.com$",
+    "@@example.com",
+    "@a@example.com",
+    "@exämple.com",
   ])("rejects %j so it cannot break out of the expression", (bad) => {
-    expect(() => parseEmails(bad)).toThrow(/invalid entry/);
+    expect(() => parseScope(bad)).toThrow(/invalid entry/);
   });
 });
 
 describe("identityExpression", () => {
-  it("renders the Gateway set syntax", () => {
-    expect(identityExpression(["a@x.com", "b@x.com"])).toBe('identity.email in {"a@x.com" "b@x.com"}');
+  const emails = (...e: string[]) => ({ emails: e, domains: [] as string[] });
+  const domains = (...d: string[]) => ({ emails: [] as string[], domains: d });
+  const patternOf = (expression: string): RegExp => {
+    const m = /matches "\(\?i\)([^"]+)"/.exec(expression);
+    if (!m) throw new Error(`no pattern in ${expression}`);
+    return new RegExp(m[1] as string, "i");
+  };
+
+  it("renders the Gateway set syntax for emails", () => {
+    expect(identityExpression(emails("a@x.com", "b@x.com"))).toBe('identity.email in {"a@x.com" "b@x.com"}');
+  });
+  it("renders an anchored, case-insensitive match for a domain, with no backslash anywhere", () => {
+    const e = identityExpression(domains("example.com"));
+    expect(e).toBe('identity.email matches "(?i)^[^@]+@example[.]com$"');
+    expect(e).not.toContain("\\");
+  });
+  it("joins several clauses with `or`, emails first", () => {
+    expect(identityExpression({ emails: ["a@x.com"], domains: ["a.com", "b.com"] })).toBe(
+      'identity.email in {"a@x.com"} or identity.email matches "(?i)^[^@]+@a[.]com$" or identity.email matches "(?i)^[^@]+@b[.]com$"',
+    );
+  });
+  describe("what the domain pattern actually matches", () => {
+    const re = patternOf(identityExpression(domains("example.com")));
+    it.each(["alice@example.com", "bob@example.com", "Alice@Example.COM", "alice+npm@example.com", "first.last@example.com", "a_b-c@example.com"])("matches %s", (addr) =>
+      expect(re.test(addr)).toBe(true),
+    );
+    it.each([
+      "alice@evil.example.com",
+      "alice@example.com.evil.com",
+      "alice@example.co",
+      "alice@xexample.com",
+      "alice@examplexcom",
+      "alice@example.com.",
+      "alice@example.com\n",
+      "a@b@example.com",
+      "@example.com",
+      "example.com",
+      "",
+      "alice@example.com@evil.com",
+      "alice@gmail.com",
+    ])("does not match %j", (addr) => expect(re.test(addr)).toBe(false));
+    it("treats the dot literally, not as any character", () => {
+      expect(re.test("alice@exampleXcom")).toBe(false);
+    });
   });
   it("revalidates even when called directly", () => {
-    expect(() => identityExpression(['a@x.com" "b'])).toThrow(/invalid email/);
-    expect(() => identityExpression([])).toThrow(/at least one/);
+    expect(() => identityExpression(emails('a@x.com" "b'))).toThrow(/invalid email/);
+    expect(() => identityExpression(domains('a.com" or true or "'))).toThrow(/invalid domain/);
+    expect(() => identityExpression(domains("a.com|b.com"))).toThrow(/invalid domain/);
+    expect(() => identityExpression(domains("Example.com"))).toThrow(/invalid domain/);
+    expect(() => identityExpression({ emails: [], domains: [] })).toThrow(/at least one/);
   });
 });
 
 describe("buildPayload", () => {
-  const payload = buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: DEFAULT_PRECEDENCE, enabled: false });
+  const payload = buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: DEFAULT_PRECEDENCE, enabled: false });
   it("is the shape the §9.1 probe proved the API accepts", () => {
     expect(payload).toMatchObject({
       name: RULE_NAME,
@@ -67,13 +136,13 @@ describe("buildPayload", () => {
   });
   it("requires the 32-hex Worker ID, not the name", () => {
     for (const bad of ["pkgguard-filter", "A".repeat(32), "a".repeat(31), ""]) {
-      expect(() => buildPayload({ workerId: bad, emails: EMAILS, precedence: 47000, enabled: false })).toThrow(/Worker ID/);
+      expect(() => buildPayload({ workerId: bad, scope: SCOPE, precedence: 47000, enabled: false })).toThrow(/Worker ID/);
     }
   });
   it("keeps the static pkg.* policies winning", () => {
-    expect(() => buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: MIN_PRECEDENCE - 1, enabled: false })).toThrow(/precedence/);
-    expect(() => buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: Number.NaN, enabled: false })).toThrow(/precedence/);
-    expect(() => buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: 47000.5, enabled: false })).toThrow(/precedence/);
+    expect(() => buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: MIN_PRECEDENCE - 1, enabled: false })).toThrow(/precedence/);
+    expect(() => buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: Number.NaN, enabled: false })).toThrow(/precedence/);
+    expect(() => buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: 47000.5, enabled: false })).toThrow(/precedence/);
   });
 });
 
@@ -84,7 +153,7 @@ describe("findWorkerId / assertPrecedenceFree / diffRule", () => {
     expect(() => findWorkerId([{ id: "short", name: "pkgguard-filter" }])).toThrow(/unexpected ID/);
   });
   const rule = (over: Partial<GatewayRule>): GatewayRule => ({
-    ...buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: 47000, enabled: false }),
+    ...buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: 47000, enabled: false }),
     id: "r1",
     ...over,
   });
@@ -93,7 +162,7 @@ describe("findWorkerId / assertPrecedenceFree / diffRule", () => {
     expect(() => assertPrecedenceFree([rule({})], 47000)).not.toThrow();
   });
   it("reports drift field by field", () => {
-    const desired = buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: 47000, enabled: false });
+    const desired = buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: 47000, enabled: false });
     expect(diffRule(desired, rule({}))).toEqual([]);
     const drift = diffRule(desired, rule({ precedence: 47100, rule_settings: { forward: { worker_id: "c".repeat(32) } } }));
     expect(drift.map((d) => d.field)).toEqual(["precedence", "worker_id"]);
@@ -121,9 +190,9 @@ function fakeApi(opts: { rules?: GatewayRule[]; workers?: Array<{ id: string; na
   return { api, calls, writes };
 }
 
-const config: Config = { emails: EMAILS, precedence: 47000 };
+const config: Config = { scope: SCOPE, precedence: 47000 };
 const live = (over: Partial<GatewayRule> = {}): GatewayRule => ({
-  ...buildPayload({ workerId: WORKER_ID, emails: EMAILS, precedence: 47000, enabled: false }),
+  ...buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: 47000, enabled: false }),
   id: "live-id",
   ...over,
 });
@@ -202,13 +271,13 @@ describe("execute", () => {
 });
 
 describe("loadConfig", () => {
-  it("defaults the precedence and requires emails", () => {
-    expect(loadConfig({ PKGGUARD_DEMO_EMAILS: "a@x.com" })).toEqual({ emails: ["a@x.com"], precedence: DEFAULT_PRECEDENCE });
+  it("defaults the precedence and requires a scope", () => {
+    expect(loadConfig({ PKGGUARD_SCOPE: "a@x.com" })).toEqual({ scope: { emails: ["a@x.com"], domains: [] }, precedence: DEFAULT_PRECEDENCE });
     expect(() => loadConfig({})).toThrow(/at least one/);
   });
   it("passes a custom precedence through for buildPayload to validate", () => {
-    expect(loadConfig({ PKGGUARD_DEMO_EMAILS: "a@x.com", PKGGUARD_FORWARD_PRECEDENCE: "48000" }).precedence).toBe(48000);
-    expect(loadConfig({ PKGGUARD_DEMO_EMAILS: "a@x.com", PKGGUARD_FORWARD_PRECEDENCE: "abc" }).precedence).toBeNaN();
+    expect(loadConfig({ PKGGUARD_SCOPE: "a@x.com", PKGGUARD_FORWARD_PRECEDENCE: "48000" }).precedence).toBe(48000);
+    expect(loadConfig({ PKGGUARD_SCOPE: "a@x.com", PKGGUARD_FORWARD_PRECEDENCE: "abc" }).precedence).toBeNaN();
   });
 });
 
