@@ -1,0 +1,28 @@
+# Private ops documents
+PLAN.md
+
+# Secrets and generated config
+.deploy.env
+.dev.vars
+**/wrangler.local.jsonc
+.envrc
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/tfplan
+terraform/.terraform.lock.hcl
+
+# Build and tooling
+node_modules/
+dist/
+.wrangler/
+coverage/
+*.log
+.DS_Store
+
+# Bootstrap working files
+scripts/.bootstrap-checkpoint.json
+scripts/data/
