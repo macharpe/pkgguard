@@ -123,12 +123,12 @@ describe("blockResponse: what each client receives", () => {
   });
 
   describe("JSON (npm and friends)", () => {
-    it("is JSON whose `error` is the only part npm prints: advisory and where to get help", async () => {
+    it("is JSON whose `error` is the only part npm prints: why, the advisory and where to get help", async () => {
       const r = blockResponse(req(NPM), pkg, decision(), REF);
       expect(r.headers.get("content-type")).toBe("application/json; charset=utf-8");
       const body = (await r.json()) as Record<string, unknown>;
       expect(body["error"]).toBe(
-        "Advisory https://osv.dev/vulnerability/GHSA-mh6f-8j2x-4483. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.",
+        "Blocked by PkgGuard: listed as malware. Advisory https://osv.dev/vulnerability/GHSA-mh6f-8j2x-4483. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.",
       );
       expect(String(body["error"])).not.toMatch(/[\r\n]/);
     });
@@ -138,7 +138,7 @@ describe("blockResponse: what each client receives", () => {
     });
     it("still has an error line when there is no advisory and no reference", async () => {
       const body = (await blockResponse(req(NPM), pkg, decision({ reason: "override", osvIds: [] }), null).json()) as { error: string };
-      expect(body.error).toBe("Need it anyway? Ask in the PkgGuard space in Google Chat.");
+      expect(body.error).toBe("Blocked by PkgGuard: blocked by an administrator. Need it anyway? Ask in the PkgGuard space in Google Chat.");
     });
   });
 

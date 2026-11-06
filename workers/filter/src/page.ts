@@ -5,10 +5,13 @@ import { fullName } from "./decide.js";
 /**
  * What a blocked developer sees. The client decides what is worth sending:
  *
- * - The HTTP reason phrase is printed by npm and pip, so it carries the essentials (package, why, reference).
- * - npm also appends the `error` field of a JSON body to that line.
- * - pip ignores the body completely, and so does npm for plain text. curl shows it as it is.
- * - A browser gets a designed page.
+ * Verified against real npm 11 and pip 26 behind Gateway:
+ * - npm appends the `error` field of a JSON body to its error line: the one channel that reaches an npm terminal.
+ * - pip prints only "403 Client Error: Forbidden". Nothing in the response reaches its terminal, so a pip user
+ *   learns the detail from the Chat alert, the dashboard or a colleague, not from the response.
+ * - The HTTP reason phrase is printed by both clients when it arrives, but Gateway replaces it with the standard
+ *   one, so it is best-effort and carries nothing that is not also elsewhere.
+ * - curl shows the plain-text body as it is, and a browser gets a designed page.
  *
  * `Accept` cannot tell these apart: npm and pip both send `*\/*` on a download. The User-Agent can.
  */
@@ -60,7 +63,7 @@ function facts(pkg: ParsedPackage, decision: Decision, rawReference: string | nu
   };
 }
 
-/** The line npm and pip print after the status code. Everything a developer needs has to fit here. */
+/** The line npm and pip print after the status code, when it survives. Gateway currently replaces it, so this is best-effort. */
 export function reasonPhrase(f: Pick<Facts, "subject" | "short" | "reference">): string {
   return reasonText(`Blocked by PkgGuard: ${f.subject} is ${f.short}${f.reference ? `. Ref ${f.reference}` : ""}`, 160);
 }
@@ -91,7 +94,7 @@ function plainBody(f: Facts): string {
 function jsonBody(f: Facts): string {
   const advisory = f.advisories[0];
   return JSON.stringify({
-    error: `${advisory ? `Advisory ${advisory.url}. ` : ""}${helpLine(f)}`,
+    error: `Blocked by PkgGuard: ${f.short}.${advisory ? ` Advisory ${advisory.url}.` : ""} ${helpLine(f)}`,
     blocked: true,
     reference: f.reference,
     package: f.subject,
