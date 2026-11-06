@@ -1,11 +1,6 @@
-output "admin_ui_aud" {
-  description = "Audience tag of the admin UI application. The admin Worker verifies Cf-Access-Jwt-Assertion against it."
-  value       = cloudflare_zero_trust_access_application.admin_ui.aud
-}
-
-output "admin_api_aud" {
-  description = "Audience tag of the admin API application."
-  value       = cloudflare_zero_trust_access_application.admin_api.aud
+output "admin_aud" {
+  description = "Audience tag of the admin application. The admin Worker verifies Cf-Access-Jwt-Assertion against it."
+  value       = cloudflare_zero_trust_access_application.admin.aud
 }
 
 output "service_token_client_id" {

@@ -5,8 +5,6 @@ export interface Env {
   ASSETS: Fetcher;
   /** `<team>.cloudflareaccess.com` */
   TEAM_DOMAIN: string;
-  /** Audience tag of the dashboard Access application. */
-  ACCESS_AUD_UI: string;
-  /** Audience tag of the `/api/*` Access application. */
-  ACCESS_AUD_API: string;
+  /** Audience tag of the Access application. */
+  ACCESS_AUD: string;
 }

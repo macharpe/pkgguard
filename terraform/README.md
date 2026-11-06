@@ -4,10 +4,11 @@ Manages the Cloudflare Access side of PkgGuard:
 
 | Resource | Purpose |
 |---|---|
-| `cloudflare_zero_trust_access_application.admin_ui` | The dashboard. People only, through existing reusable policies. |
-| `cloudflare_zero_trust_access_application.admin_api` | `<host>/api/*`. People **and** the service token, because the dashboard's own `fetch()` calls carry the browser session. |
+| `cloudflare_zero_trust_access_application.admin` | The whole admin hostname: dashboard and `/api/*`. People through existing reusable policies, plus the service token. |
 | `cloudflare_zero_trust_access_policy.api_service_token` | `non_identity` policy admitting the API service token. |
 | `cloudflare_zero_trust_access_service_token.api` | The token for scripted access to `/api/*`. |
+
+There is deliberately **one** application. A second one on `/api/*` shares the hostname's `CF_Authorization` cookie name with a different audience, so a browser session earned on the dashboard is rejected on the API. Access cannot keep the token to `/api/*` inside a single application, so the admin Worker does: it refuses a service-token identity on any other path.
 
 The existing reusable policies and identity providers are referenced by ID and never modified.
 
@@ -31,4 +32,4 @@ terraform plan -out=tfplan
 
 Never apply without reading the plan. State is local and gitignored; it holds the service token secret, so treat the directory as sensitive.
 
-The two Access applications and the service token carry `prevent_destroy`. Do not use the bare `CLOUDFLARE_API_TOKEN` name: wrangler reserves it.
+The Access application and the service token carry `prevent_destroy`. Do not use the bare `CLOUDFLARE_API_TOKEN` name: wrangler reserves it.

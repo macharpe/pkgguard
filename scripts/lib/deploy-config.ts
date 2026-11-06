@@ -46,17 +46,11 @@ const FIELDS = {
     hint: "<team>.cloudflareaccess.com",
   },
   // Not zeros: a run of 32 zeros inside a 64-zero placeholder would count as two account IDs.
-  ACCESS_AUD_UI: {
-    env: "PKGGUARD_ACCESS_AUD_UI",
+  ACCESS_AUD: {
+    env: "PKGGUARD_ACCESS_AUD",
     placeholder: "f".repeat(64),
     pattern: /^[0-9a-f]{64}$/,
-    hint: "64 lowercase hex characters (the dashboard Access application)",
-  },
-  ACCESS_AUD_API: {
-    env: "PKGGUARD_ACCESS_AUD_API",
-    placeholder: "e".repeat(64),
-    pattern: /^[0-9a-f]{64}$/,
-    hint: "64 lowercase hex characters (the /api/* Access application)",
+    hint: "64 lowercase hex characters (the audience of the Access application)",
   },
 } as const satisfies Record<string, Field>;
 
@@ -67,7 +61,7 @@ export const field = (name: FieldName): Field => FIELDS[name];
 /** Expected occurrences of each placeholder per worker template. A different count means template drift. */
 export const WORKERS: Record<string, Partial<Record<FieldName, number>>> = {
   filter: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1 },
-  admin: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1, ADMIN_HOSTNAME: 1, TEAM_DOMAIN: 1, ACCESS_AUD_UI: 1, ACCESS_AUD_API: 1 },
+  admin: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1, ADMIN_HOSTNAME: 1, TEAM_DOMAIN: 1, ACCESS_AUD: 1 },
 };
 
 const count = (haystack: string, needle: string): number => haystack.split(needle).length - 1;

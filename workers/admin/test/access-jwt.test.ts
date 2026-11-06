@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AccessError, actorLabel, readAssertion, verifyAccessJwt } from "../src/access-jwt.js";
-import { AUD_API, AUD_UI, NOW_MS, NOW_S, TEAM, b64url, fakeJwks, goodPayload, makeKey, reset, sign, type TestKey } from "./jwt-helpers.js";
+import { AUD, OTHER_AUD, NOW_MS, NOW_S, TEAM, b64url, fakeJwks, goodPayload, makeKey, reset, sign, type TestKey } from "./jwt-helpers.js";
 
 const config = { teamDomain: TEAM };
 let key: TestKey;
@@ -12,7 +12,7 @@ beforeAll(async () => {
 });
 beforeEach(reset);
 
-const verify = (token: string, audience = AUD_UI, fetchFn = fakeJwks(key).fetch, now = NOW_MS) =>
+const verify = (token: string, audience = AUD, fetchFn = fakeJwks(key).fetch, now = NOW_MS) =>
   verifyAccessJwt(token, config, audience, fetchFn, now);
 const rejects = (promise: Promise<unknown>, message: RegExp) => expect(promise).rejects.toThrow(message);
 
@@ -21,16 +21,16 @@ describe("accepting valid tokens", () => {
     expect(await verify(await sign(key))).toEqual({ kind: "user", email: "demo@example.com" });
   });
   it("identifies a service token by common_name, which has no email", async () => {
-    const token = await sign(key, { payload: goodPayload({ email: undefined, common_name: "abc123.access", aud: [AUD_API] }) });
-    const actor = await verify(token, AUD_API);
+    const token = await sign(key, { payload: goodPayload({ email: undefined, common_name: "abc123.access" }) });
+    const actor = await verify(token, AUD);
     expect(actor).toEqual({ kind: "service-token", clientId: "abc123.access" });
     expect(actorLabel(actor)).toBe("service-token:abc123.access");
   });
   it("accepts aud given as a bare string", async () => {
-    expect(await verify(await sign(key, { payload: goodPayload({ aud: AUD_UI }) }))).toMatchObject({ kind: "user" });
+    expect(await verify(await sign(key, { payload: goodPayload({ aud: AUD }) }))).toMatchObject({ kind: "user" });
   });
   it("accepts a token whose aud lists several applications", async () => {
-    expect(await verify(await sign(key, { payload: goodPayload({ aud: ["x".repeat(64), AUD_UI] }) }))).toMatchObject({ kind: "user" });
+    expect(await verify(await sign(key, { payload: goodPayload({ aud: ["x".repeat(64), AUD] }) }))).toMatchObject({ kind: "user" });
   });
   it("prefers email when both claims are present", async () => {
     const t = await sign(key, { payload: goodPayload({ common_name: "abc.access" }) });
@@ -38,17 +38,17 @@ describe("accepting valid tokens", () => {
   });
 });
 
-describe("audience is bound to the application", () => {
-  it("rejects a dashboard token on the API path and the reverse", async () => {
-    await rejects(verify(await sign(key), AUD_API), /wrong audience/);
-    const apiToken = await sign(key, { payload: goodPayload({ aud: [AUD_API] }) });
-    await rejects(verify(apiToken, AUD_UI), /wrong audience/);
+describe("audience", () => {
+  it("rejects a token issued for a different application", async () => {
+    await rejects(verify(await sign(key), OTHER_AUD), /wrong audience/);
+    const other = await sign(key, { payload: goodPayload({ aud: [OTHER_AUD] }) });
+    await rejects(verify(other, AUD), /wrong audience/);
   });
   it("rejects a token with no aud at all", async () => {
     await rejects(verify(await sign(key, { payload: goodPayload({ aud: undefined }) })), /wrong audience/);
   });
   it("rejects a non-string, non-array aud", async () => {
-    await rejects(verify(await sign(key, { payload: goodPayload({ aud: { x: AUD_UI } }) })), /wrong audience/);
+    await rejects(verify(await sign(key, { payload: goodPayload({ aud: { x: AUD } }) })), /wrong audience/);
   });
 });
 
@@ -129,34 +129,34 @@ describe("time", () => {
 describe("the signing key set", () => {
   it("fetches once and caches", async () => {
     const jwks = fakeJwks(key);
-    await verify(await sign(key), AUD_UI, jwks.fetch);
-    await verify(await sign(key), AUD_UI, jwks.fetch);
+    await verify(await sign(key), AUD, jwks.fetch);
+    await verify(await sign(key), AUD, jwks.fetch);
     expect(jwks.calls()).toBe(1);
   });
   it("refetches after the cache expires", async () => {
     const jwks = fakeJwks(key);
-    await verify(await sign(key), AUD_UI, jwks.fetch, NOW_MS);
-    await verify(await sign(key), AUD_UI, jwks.fetch, NOW_MS + 11 * 60_000);
+    await verify(await sign(key), AUD, jwks.fetch, NOW_MS);
+    await verify(await sign(key), AUD, jwks.fetch, NOW_MS + 11 * 60_000);
     expect(jwks.calls()).toBe(2);
   });
   it("picks up a rotated key: an unknown kid triggers a refetch", async () => {
     const jwks = fakeJwks(key);
-    await verify(await sign(key), AUD_UI, jwks.fetch, NOW_MS);
+    await verify(await sign(key), AUD, jwks.fetch, NOW_MS);
     jwks.serve(key, other);
-    expect(await verify(await sign(other), AUD_UI, jwks.fetch, NOW_MS + 60_000)).toBeTruthy();
+    expect(await verify(await sign(other), AUD, jwks.fetch, NOW_MS + 60_000)).toBeTruthy();
     expect(jwks.calls()).toBe(2);
   });
   it("does not refetch for an unknown kid more often than the cooldown, so junk tokens cannot hammer Access", async () => {
     const jwks = fakeJwks(key);
-    await verify(await sign(key), AUD_UI, jwks.fetch, NOW_MS);
-    for (let i = 0; i < 5; i++) await rejects(verify(await sign({ ...other, kid: `junk${i}` }), AUD_UI, jwks.fetch, NOW_MS + 1000), /unknown key/);
+    await verify(await sign(key), AUD, jwks.fetch, NOW_MS);
+    for (let i = 0; i < 5; i++) await rejects(verify(await sign({ ...other, kid: `junk${i}` }), AUD, jwks.fetch, NOW_MS + 1000), /unknown key/);
     expect(jwks.calls()).toBe(1);
   });
   it("fails closed when the key set cannot be fetched", async () => {
     const boom = async () => {
       throw new Error("network down");
     };
-    await rejects(verify(await sign(key), AUD_UI, boom), /could not fetch/);
+    await rejects(verify(await sign(key), AUD, boom), /could not fetch/);
   });
   it.each([
     ["an HTTP error", () => new Response("no", { status: 503 }), /HTTP 503/],
@@ -165,13 +165,13 @@ describe("the signing key set", () => {
     ["an empty key set", () => Response.json({ keys: [] }), /no usable RSA key/],
     ["only non-RSA keys", () => Response.json({ keys: [{ kty: "EC", kid: "k1" }] }), /no usable RSA key/],
   ])("fails closed on %s", async (_n, make, message) => {
-    await rejects(verify(await sign(key), AUD_UI, async () => make()), message);
+    await rejects(verify(await sign(key), AUD, async () => make()), message);
   });
   it("does not trust a stale cached key forever: a revoked key is dropped on refresh", async () => {
     const jwks = fakeJwks(key, other);
-    await verify(await sign(other), AUD_UI, jwks.fetch, NOW_MS);
+    await verify(await sign(other), AUD, jwks.fetch, NOW_MS);
     jwks.serve(key);
-    await rejects(verify(await sign(other), AUD_UI, jwks.fetch, NOW_MS + 11 * 60_000), /unknown key/);
+    await rejects(verify(await sign(other), AUD, jwks.fetch, NOW_MS + 11 * 60_000), /unknown key/);
   });
 });
 

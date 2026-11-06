@@ -1,8 +1,8 @@
 import { resetJwksCache, type FetchLike } from "../src/access-jwt.js";
 
 export const TEAM = "acme.cloudflareaccess.com";
-export const AUD_UI = "a".repeat(64);
-export const AUD_API = "b".repeat(64);
+export const AUD = "a".repeat(64);
+export const OTHER_AUD = "b".repeat(64);
 export const NOW_MS = 1_800_000_000_000;
 export const NOW_S = NOW_MS / 1000;
 
@@ -37,7 +37,7 @@ export interface SignOptions {
 
 export const goodPayload = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
   iss: `https://${TEAM}`,
-  aud: [AUD_UI],
+  aud: [AUD],
   exp: NOW_S + 3600,
   iat: NOW_S - 10,
   nbf: NOW_S - 10,

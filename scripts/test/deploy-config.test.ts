@@ -11,8 +11,7 @@ const GOOD = {
   D1_ID: "12345678-1234-1234-1234-123456789abc",
   ADMIN_HOSTNAME: "pkgguard.corp.example.org",
   TEAM_DOMAIN: "acme.cloudflareaccess.com",
-  ACCESS_AUD_UI: "c".repeat(64),
-  ACCESS_AUD_API: "d".repeat(64),
+  ACCESS_AUD: "c".repeat(64),
 } satisfies Record<FieldName, string>;
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
@@ -43,8 +42,8 @@ describe("placeholders", () => {
     ["ADMIN_HOSTNAME", "no_dots"],
     ["ADMIN_HOSTNAME", 'evil.example.com"}'],
     ["TEAM_DOMAIN", "acme.example.com"],
-    ["ACCESS_AUD_UI", "c".repeat(63)],
-    ["ACCESS_AUD_API", "d".repeat(65)],
+    ["ACCESS_AUD", "c".repeat(63)],
+    ["ACCESS_AUD", "c".repeat(65)],
   ] as Array<[FieldName, string]>)("rejects malformed %s %j", (name, value) => {
     expect(validate(name, value)).not.toBeNull();
   });
@@ -91,7 +90,7 @@ describe("renderConfig", () => {
     expect(() => renderConfig('{"a":"x"}', expected, GOOD)).toThrow(/Template drift/);
   });
   it("throws Template drift on an unexpected extra placeholder", () => {
-    expect(() => renderConfig(`${template}"${field("ACCESS_AUD_UI").placeholder}"`, expected, GOOD)).toThrow(/ACCESS_AUD_UI placeholder appears 1 time/);
+    expect(() => renderConfig(`${template}"${field("ACCESS_AUD").placeholder}"`, expected, GOOD)).toThrow(/ACCESS_AUD placeholder appears 1 time/);
   });
   it("fails when a value is missing, reporting every problem at once", () => {
     expect(() => renderConfig(template, expected, {})).toThrow(/PKGGUARD_ACCOUNT_ID is not set[\s\S]*PKGGUARD_KV_ID is not set/);

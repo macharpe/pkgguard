@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { handle, type Deps } from "../src/index.js";
 import type { Env } from "../src/env.js";
 import { resetStatusCache } from "../src/api/status.js";
-import { AUD_API, AUD_UI, NOW_MS, NOW_S, TEAM, fakeJwks, goodPayload, makeKey, reset, sign, type TestKey } from "./jwt-helpers.js";
+import { AUD, NOW_MS, NOW_S, TEAM, fakeJwks, goodPayload, makeKey, reset, sign, type TestKey } from "./jwt-helpers.js";
 
 export const FILES: Record<string, { type: string; body: string }> = {
   "/index.html": { type: "text/html; charset=utf-8", body: "<!doctype html><title>PkgGuard</title><div id=root></div>" },
@@ -19,7 +19,7 @@ export const fakeAssets = {
   },
 } as unknown as Fetcher;
 
-export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, ASSETS: fakeAssets, TEAM_DOMAIN: TEAM, ACCESS_AUD_UI: AUD_UI, ACCESS_AUD_API: AUD_API, ...over });
+export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, ASSETS: fakeAssets, TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ...over });
 
 let key: TestKey;
 export async function setup(): Promise<void> {
@@ -36,9 +36,9 @@ export async function setup(): Promise<void> {
   await Promise.all(list.keys.map((k) => env.PKG_INDEX.delete(k.name)));
 }
 
-export const user = async (aud: string = AUD_UI, email = "demo@example.com"): Promise<string> =>
+export const user = async (aud: string = AUD, email = "demo@example.com"): Promise<string> =>
   sign(key, { payload: goodPayload({ aud: [aud], email }) });
-export const serviceToken = async (aud: string = AUD_API, clientId = "tok123.access"): Promise<string> =>
+export const serviceToken = async (aud: string = AUD, clientId = "tok123.access"): Promise<string> =>
   sign(key, { payload: goodPayload({ aud: [aud], email: undefined, common_name: clientId }) });
 
 export const deps = (): Deps => ({ now: () => new Date(NOW_MS), fetchJwks: fakeJwks(key).fetch });

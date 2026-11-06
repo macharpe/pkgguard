@@ -32,8 +32,11 @@ resource "cloudflare_zero_trust_access_policy" "api_service_token" {
   }]
 }
 
-# The dashboard: people only.
-resource "cloudflare_zero_trust_access_application" "admin_ui" {
+# One application for the whole hostname. A second application on /api/* would share this hostname's
+# CF_Authorization cookie name but have a different audience, so a browser session earned on the dashboard
+# is rejected on /api/* and the dashboard's own fetch() calls bounce to login. People and the service token
+# therefore share one application and one audience. The Worker, not Access, keeps the token to /api/*.
+resource "cloudflare_zero_trust_access_application" "admin" {
   account_id           = var.cloudflare_account_id
   type                 = "self_hosted"
   name                 = "PkgGuard Admin"
@@ -48,31 +51,6 @@ resource "cloudflare_zero_trust_access_application" "admin_ui" {
   allowed_idps              = var.allowed_idp_ids
   auto_redirect_to_identity = false # two identity providers: let the user choose
 
-  policies = local.human_policies
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# The API path is a more specific application, so it wins over the dashboard for /api/*.
-# It must admit people as well as the service token: the dashboard's own fetch() calls
-# to /api/* carry the browser session and would be denied by a token-only policy.
-resource "cloudflare_zero_trust_access_application" "admin_api" {
-  account_id           = var.cloudflare_account_id
-  type                 = "self_hosted"
-  name                 = "PkgGuard Admin API"
-  app_launcher_visible = false
-  session_duration     = var.session_duration
-
-  destinations = [{
-    type = "public"
-    uri  = "${var.admin_hostname}/api/*"
-  }]
-
-  allowed_idps              = var.allowed_idp_ids
-  auto_redirect_to_identity = false
-
   policies = concat(local.human_policies, [{
     id         = cloudflare_zero_trust_access_policy.api_service_token.id
     precedence = local.service_token_policy_precedence
@@ -81,4 +59,10 @@ resource "cloudflare_zero_trust_access_application" "admin_api" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# The dashboard application used to be named admin_ui, and a second application, admin_api, covered /api/*.
+moved {
+  from = cloudflare_zero_trust_access_application.admin_ui
+  to   = cloudflare_zero_trust_access_application.admin
 }

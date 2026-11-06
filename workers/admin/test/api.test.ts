@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AUD_API, AUD_UI, NOW_MS } from "./jwt-helpers.js";
+import { AUD, NOW_MS, OTHER_AUD } from "./jwt-helpers.js";
 import { adminEnv, addAdvisory, addDetection, call, iso, putKv, serviceToken, setup, user } from "./harness.js";
 
 beforeEach(setup);
@@ -17,40 +17,59 @@ describe("authentication", () => {
     expect(r.status).toBe(403);
     expect(await body(r)).toEqual({ error: "invalid Access assertion" });
   });
-  it("binds the audience to the path: a dashboard token is refused on /api and an API token on /", async () => {
-    expect((await call("/api/status", await user(AUD_UI))).status).toBe(403);
-    expect((await call("/", await user(AUD_API))).status).toBe(403);
-    expect((await call("/api/status", await user(AUD_API))).status).toBe(200);
-    expect((await call("/", await user(AUD_UI))).status).toBe(200);
+  it("accepts a person on the dashboard and on the API: one application, one audience", async () => {
+    expect((await call("/", await user())).status).toBe(200);
+    expect((await call("/api/status", await user())).status).toBe(200);
   });
-  it("treats /api itself as the API application", async () => {
-    expect((await call("/api", await user(AUD_UI))).status).toBe(403);
+  it("rejects a token issued for another application, on every path", async () => {
+    for (const path of ["/", "/api/status", "/assets/app-abc123.js"]) {
+      expect((await call(path, await user(OTHER_AUD))).status, path).toBe(403);
+      expect((await call(path, await serviceToken(OTHER_AUD))).status, path).toBe(403);
+    }
   });
-  it("is not fooled by path tricks that look like /api but are not", async () => {
-    expect((await call("/apix", await user(AUD_UI))).status).toBe(404);
-    expect((await call("/API/status", await user(AUD_UI))).status).toBe(404);
+  it("keeps a service token to the API: it is refused the dashboard and every asset", async () => {
+    const token = await serviceToken();
+    for (const path of ["/", "/index.html", "/assets/app-abc123.js", "/theme-init.js", "/favicon.ico"]) {
+      const r = await call(path, token);
+      expect(r.status, path).toBe(403);
+      expect(await r.json(), path).toEqual({ error: "service tokens may only call the API" });
+    }
+  });
+  it("is not fooled by path tricks that look like /api but are not, for a service token", async () => {
+    const token = await serviceToken();
+    for (const path of ["/apix", "/API/status", "//api/status", "/api%2Fstatus", "/api/../index.html", "/x/api/status", "/api.json"]) {
+      expect((await call(path, token)).status, path).toBe(403);
+    }
+  });
+  it("treats /api itself as an API path, so a token reaches the router and gets a 404, not a 403", async () => {
+    expect((await call("/api", await serviceToken())).status).toBe(404);
+    expect((await call("/api", await user())).status).toBe(404);
+  });
+  it("gives a person the same 404 on paths that only look like /api", async () => {
+    expect((await call("/apix", await user())).status).toBe(404);
+    expect((await call("/API/status", await user())).status).toBe(404);
   });
   it("lets a service token reach /api/*", async () => {
     const r = await call("/api/whoami", await serviceToken());
     expect(await body(r)).toEqual({ actor: { kind: "service-token", clientId: "tok123.access" }, label: "service-token:tok123.access" });
   });
   it("reports a person's email on /api/whoami", async () => {
-    expect((await body(await call("/api/whoami", await user(AUD_API, "a@b.co")))).actor).toEqual({ kind: "user", email: "a@b.co" });
+    expect((await body(await call("/api/whoami", await user(AUD, "a@b.co")))).actor).toEqual({ kind: "user", email: "a@b.co" });
   });
   it("authenticates before routing, so an unknown path never leaks existence to the unauthenticated", async () => {
     expect((await call("/api/nope", null)).status).toBe(401);
-    expect((await call("/api/nope", await user(AUD_API))).status).toBe(404);
+    expect((await call("/api/nope", await user(AUD))).status).toBe(404);
   });
   it("refuses writes for now with 405 once authenticated, and 401 before", async () => {
     expect((await call("/api/status", null, { method: "POST" })).status).toBe(401);
-    expect((await call("/api/status", await user(AUD_API), { method: "POST" })).status).toBe(405);
-    expect((await call("/api/status", await user(AUD_API), { method: "DELETE" })).status).toBe(405);
+    expect((await call("/api/status", await user(AUD), { method: "POST" })).status).toBe(405);
+    expect((await call("/api/status", await user(AUD), { method: "DELETE" })).status).toBe(405);
   });
 });
 
 describe("serving the dashboard", () => {
   it("serves index.html at / with a strict CSP and no caching", async () => {
-    const r = await call("/", await user(AUD_UI));
+    const r = await call("/", await user(AUD));
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toMatch(/text\/html/);
     expect(r.headers.get("cache-control")).toBe("no-store");
@@ -64,42 +83,42 @@ describe("serving the dashboard", () => {
     expect(await r.text()).toContain("PkgGuard");
   });
   it("caches hashed bundles privately and immutably, but never the HTML", async () => {
-    const r = await call("/assets/app-abc123.js", await user(AUD_UI));
+    const r = await call("/assets/app-abc123.js", await user(AUD));
     expect(r.status).toBe(200);
     expect(r.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
     expect(r.headers.get("content-security-policy")).toBeNull();
   });
   it("does not cache unhashed scripts", async () => {
-    expect((await call("/theme-init.js", await user(AUD_UI))).headers.get("cache-control")).toBe("no-store");
+    expect((await call("/theme-init.js", await user(AUD))).headers.get("cache-control")).toBe("no-store");
   });
   it("verifies the token before serving any asset", async () => {
     expect((await call("/assets/app-abc123.js", null)).status).toBe(401);
-    expect((await call("/assets/app-abc123.js", await user(AUD_API))).status).toBe(403);
+    expect((await call("/assets/app-abc123.js", await user(OTHER_AUD))).status).toBe(403);
     expect((await call("/index.html", "garbage")).status).toBe(403);
   });
   it("404s a missing asset with the JSON error and never falls back to index.html", async () => {
     for (const path of ["/assets/missing.js", "/some/route"]) {
-      const r = await call(path, await user(AUD_UI));
+      const r = await call(path, await user(AUD));
       expect(r.status).toBe(404);
       expect(await r.json()).toEqual({ error: "not found" });
     }
   });
   it("cannot be steered out of the asset directory", async () => {
-    for (const p of ["/../etc/passwd", "/%2e%2e/secret", "/assets/../../x"]) expect([403, 404], p).toContain((await call(p, await user(AUD_UI))).status);
+    for (const p of ["/../etc/passwd", "/%2e%2e/secret", "/assets/../../x"]) expect([403, 404], p).toContain((await call(p, await user(AUD))).status);
   });
   it("never serves assets for /api paths", async () => {
-    expect((await call("/api/index.html", await user(AUD_API))).status).toBe(404);
+    expect((await call("/api/index.html", await user(AUD))).status).toBe(404);
   });
   it("answers HEAD for an asset", async () => {
-    expect((await call("/", await user(AUD_UI), { method: "HEAD" })).status).toBe(200);
+    expect((await call("/", await user(AUD), { method: "HEAD" })).status).toBe(200);
   });
   it("refuses POST to an asset path", async () => {
-    expect((await call("/", await user(AUD_UI), { method: "POST" })).status).toBe(405);
+    expect((await call("/", await user(AUD), { method: "POST" })).status).toBe(405);
   });
 });
 
 describe("GET /api/status", () => {
-  const status = async () => body(await call("/api/status", await user(AUD_API)));
+  const status = async () => body(await call("/api/status", await user(AUD)));
 
   it("is well formed on an empty database", async () => {
     const s = await status();
@@ -143,7 +162,7 @@ describe("GET /api/status", () => {
 });
 
 describe("GET /api/detections", () => {
-  const get = async (qs = "") => body(await call(`/api/detections${qs}`, await user(AUD_API)));
+  const get = async (qs = "") => body(await call(`/api/detections${qs}`, await user(AUD)));
 
   it("returns newest first", async () => {
     for (const n of ["a", "b", "c"]) await addDetection({ package_name: n });
@@ -175,17 +194,17 @@ describe("GET /api/detections", () => {
   it.each(["?verdict=evil", "?ecosystem=gem", "?limit=0", "?limit=201", "?limit=abc", "?limit=-1", "?limit=1.5", "?before=x", "?before=0"])(
     "rejects %s with 400",
     async (qs) => {
-      expect((await call(`/api/detections${qs}`, await user(AUD_API))).status).toBe(400);
+      expect((await call(`/api/detections${qs}`, await user(AUD))).status).toBe(400);
     },
   );
   it("treats SQL in a parameter as a plain invalid value", async () => {
-    const r = await call(`/api/detections?verdict=${encodeURIComponent("blocked' OR '1'='1")}`, await user(AUD_API));
+    const r = await call(`/api/detections?verdict=${encodeURIComponent("blocked' OR '1'='1")}`, await user(AUD));
     expect(r.status).toBe(400);
   });
 });
 
 describe("GET /api/advisories", () => {
-  const get = async (qs: string) => call(`/api/advisories${qs}`, await user(AUD_API));
+  const get = async (qs: string) => call(`/api/advisories${qs}`, await user(AUD));
   const kv = (m: unknown[], c: unknown[]) => ({ v: 1, m, c, u: iso() });
 
   it("requires q", async () => {
@@ -291,22 +310,22 @@ describe("GET /api/advisories", () => {
 
 describe("routing and failure handling", () => {
   it("404s an authenticated unknown path", async () => {
-    expect((await call("/api/unknown", await user(AUD_API))).status).toBe(404);
-    expect((await call("/favicon.ico", await user(AUD_UI))).status).toBe(404);
+    expect((await call("/api/unknown", await user(AUD))).status).toBe(404);
+    expect((await call("/favicon.ico", await user(AUD))).status).toBe(404);
   });
   it("answers HEAD like GET", async () => {
-    expect((await call("/api/status", await user(AUD_API), { method: "HEAD" })).status).toBe(200);
+    expect((await call("/api/status", await user(AUD), { method: "HEAD" })).status).toBe(200);
   });
   it("returns a generic 500 with an exact body, and never leaks the underlying error", async () => {
     const broken = adminEnv({ DB: { prepare: () => { throw new Error("secret table detail"); } } as never });
-    const r = await call("/api/status", await user(AUD_API), {}, broken);
+    const r = await call("/api/status", await user(AUD), {}, broken);
     expect(r.status).toBe(500);
     expect(await r.text()).toBe('{"error":"internal error"}');
   });
   it("logs the reason server-side without the stack", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const broken = adminEnv({ DB: { prepare: () => { throw new Error("db exploded"); } } as never });
-    await call("/api/status", await user(AUD_API), {}, broken);
+    await call("/api/status", await user(AUD), {}, broken);
     expect(spy).toHaveBeenCalledWith("unhandled", "db exploded");
     spy.mockRestore();
   });

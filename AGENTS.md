@@ -33,7 +33,7 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - Call the global `fetch` through a wrapper, never as a stored property: workerd throws Illegal invocation otherwise.
 - Deleting the filter Worker does **not** disable a live Forward policy; matching requests then return 500. Update or delete the policy first (`npm run gateway:rule -- delete`).
 - The Forward rule is always scoped to `PKGGUARD_DEMO_EMAILS` and always created disabled. Its precedence must stay above the static `pkg.*` policies (46500).
-- The `/api/*` Access application must admit people as well as the service token, or the dashboard's own API calls are denied.
+- There is one Access application for the admin hostname, covering people and the service token. Never add a second application on the same hostname (see the admin invariants).
 - Gateway only classifies a package download if the registry host is TLS-decrypted. A Do Not Inspect rule covering the registry's app silently disables enforcement for that ecosystem.
 - Real account IDs, hostnames and secrets never enter a tracked file. Edit `wrangler.jsonc` (placeholders), never `wrangler.local.jsonc` (generated). Every placeholder is distinct and format-valid; adding a new one means adding it to `scripts/lib/deploy-config.ts` and to the worker's expected counts there.
 
@@ -90,7 +90,7 @@ workers/admin/            pkgguard-admin
   test/                     Workers-runtime tests; assets-real.test.ts needs `npm run build:admin` first
 ```
 
-Admin invariants: the dashboard and `/api/*` are **separate Access applications with different audiences**, so each path accepts only its own token (`audienceFor`). A service-token JWT has `common_name` and no `email`. Every non-API GET is served from the `ASSETS` binding only after the JWT is verified, and the CSP is set by response content type, not by URL, because the page is requested as `/`. The CSP forbids inline script, so the theme bootstrap is the external `theme-init.js`. The UI must treat an opaque redirect (Access sending an expired session to login) as "session ended", and hide its panels rather than show an empty state.
+Admin invariants: the dashboard and `/api/*` are **one Access application with one audience**. Do not split them: a second application on the same hostname shares the `CF_Authorization` cookie name but has a different audience, so the browser session earned on the dashboard is rejected on `/api/*` and the dashboard's own `fetch()` calls bounce to login. A service-token JWT has `common_name` and no `email`, and Access cannot scope it by path inside one application, so the Worker refuses a service token everywhere except `/api/` (`authenticate`). Every non-API GET is served from the `ASSETS` binding only after the JWT is verified, and the CSP is set by response content type, not by URL, because the page is requested as `/`. The CSP forbids inline script, so the theme bootstrap is the external `theme-init.js`. The UI must treat an opaque redirect (Access sending an expired session to login) as "session ended", and hide its panels rather than show an empty state.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 

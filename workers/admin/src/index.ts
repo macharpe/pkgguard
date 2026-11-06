@@ -16,20 +16,26 @@ export interface Deps {
   fetchJwks?: (url: string) => Promise<Response>;
 }
 
-/** The `/api/*` path is a separate Access application with its own audience, so each path only accepts its own token. */
-export const audienceFor = (pathname: string, env: Env): string =>
-  pathname === "/api" || pathname.startsWith("/api/") ? env.ACCESS_AUD_API : env.ACCESS_AUD_UI;
+const isApiPath = (pathname: string): boolean => pathname === "/api" || pathname.startsWith("/api/");
 
+/**
+ * Dashboard and API share one Access application, so one cookie and one audience. A service token may only
+ * call the API: Access cannot scope it by path inside one application, so it is refused here.
+ */
 export async function authenticate(request: Request, env: Env, deps: Deps): Promise<Actor> {
   const token = readAssertion(request);
   if (token === null) throw new HttpError(401, "missing Access assertion");
-  const audience = audienceFor(new URL(request.url).pathname, env);
+  let actor: Actor;
   try {
-    return await verifyAccessJwt(token, { teamDomain: env.TEAM_DOMAIN }, audience, deps.fetchJwks, deps.now().getTime());
+    actor = await verifyAccessJwt(token, { teamDomain: env.TEAM_DOMAIN }, env.ACCESS_AUD, deps.fetchJwks, deps.now().getTime());
   } catch (err) {
     if (err instanceof AccessError) throw new HttpError(403, "invalid Access assertion");
     throw err;
   }
+  if (actor.kind === "service-token" && !isApiPath(new URL(request.url).pathname)) {
+    throw new HttpError(403, "service tokens may only call the API");
+  }
+  return actor;
 }
 
 export async function route(request: Request, env: Env, deps: Deps): Promise<Response> {
@@ -48,7 +54,7 @@ export async function route(request: Request, env: Env, deps: Deps): Promise<Res
     case "/api/advisories":
       return advisories(env, url);
     default:
-      if (url.pathname === "/api" || url.pathname.startsWith("/api/")) throw new HttpError(404, "not found");
+      if (isApiPath(url.pathname)) throw new HttpError(404, "not found");
       return serveAsset(request, env);
   }
 }

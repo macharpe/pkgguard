@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { adminEnv, call, setup, user } from "./harness.js";
-import { AUD_UI } from "./jwt-helpers.js";
+import { AUD } from "./jwt-helpers.js";
 
 /**
  * Runs against the real Assets binding, so it only means something once the dashboard is built.
@@ -13,7 +13,7 @@ describe("the real Assets binding", () => {
   it("serves the built dashboard through the Worker", async (ctx) => {
     if ((await env.ASSETS.fetch(new Request("https://x.example/"))).status !== 200) ctx.skip();
     const e = adminEnv({ ASSETS: env.ASSETS });
-    const token = await user(AUD_UI);
+    const token = await user(AUD);
 
     const page = await call("/", token, {}, e);
     expect(page.status).toBe(200);
@@ -35,7 +35,7 @@ describe("the real Assets binding", () => {
 
   it("answers a missing asset with the JSON 404, not an asset body", async (ctx) => {
     if ((await env.ASSETS.fetch(new Request("https://x.example/"))).status !== 200) ctx.skip();
-    const r = await call("/assets/does-not-exist.js", await user(AUD_UI), {}, adminEnv({ ASSETS: env.ASSETS }));
+    const r = await call("/assets/does-not-exist.js", await user(AUD), {}, adminEnv({ ASSETS: env.ASSETS }));
     expect(r.status).toBe(404);
     expect(await r.json()).toEqual({ error: "not found" });
   });
