@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { distill } from "../src/osv/distill.js";
-import { buildKvEntry, evaluate, type KvEntry } from "../src/osv/index-entry.js";
+import { buildKvEntry, evaluate, summarizeVerdict, type KvEntry } from "../src/osv/index-entry.js";
 import type { OsvRecord } from "../src/osv/types.js";
 
 function fixture(id: string): OsvRecord {
@@ -167,5 +167,25 @@ describe("buildKvEntry", () => {
     const entry = entryFor("GHSA-mh6f-8j2x-4483", "npm", "event-stream");
     const revived = JSON.parse(JSON.stringify(entry)) as KvEntry;
     expect(evaluate("npm", revived, "3.3.6").malware).toHaveLength(1);
+  });
+});
+
+describe("summarizeVerdict", () => {
+  it("blocks on malware, and malware outranks vulnerabilities", () => {
+    expect(summarizeVerdict({ malware: ["MAL-1"], vulnerabilities: [{ id: "CVE-1", severity: "HIGH" }] })).toEqual({
+      outcome: "blocked",
+      reason: "osv-malware",
+      osvIds: ["MAL-1"],
+    });
+  });
+  it("flags vulnerabilities without blocking", () => {
+    expect(summarizeVerdict({ malware: [], vulnerabilities: [{ id: "A", severity: null }, { id: "B", severity: "LOW" }] })).toEqual({
+      outcome: "flagged",
+      reason: "osv-cve",
+      osvIds: ["A", "B"],
+    });
+  });
+  it("allows when nothing matches", () => {
+    expect(summarizeVerdict({ malware: [], vulnerabilities: [] })).toEqual({ outcome: "allowed", reason: null, osvIds: [] });
   });
 });

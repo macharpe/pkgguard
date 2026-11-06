@@ -8,6 +8,7 @@ import {
   overrideKey,
   parseKvValue,
   parseOverride,
+  summarizeVerdict,
   type KvValue,
   type ParsedPackage,
   type Verdict,
@@ -45,13 +46,9 @@ const allowed = (source: DetectionSource): Decision => ({
 });
 
 function fromVerdict(verdict: Verdict, source: DetectionSource): Decision {
-  if (verdict.malware.length > 0) {
-    return { block: true, verdict: "blocked", reason: "osv-malware", osvIds: verdict.malware, source };
-  }
-  if (verdict.vulnerabilities.length > 0) {
-    return { block: false, verdict: "flagged", reason: "osv-cve", osvIds: verdict.vulnerabilities.map((v) => v.id), source };
-  }
-  return allowed(source);
+  const summary = summarizeVerdict(verdict);
+  if (summary.outcome === "allowed") return allowed(source);
+  return { block: summary.outcome === "blocked", verdict: summary.outcome, reason: summary.reason, osvIds: summary.osvIds, source };
 }
 
 export const fullName = (pkg: ParsedPackage): string => (pkg.namespace ? `${pkg.namespace}/${pkg.name}` : pkg.name);

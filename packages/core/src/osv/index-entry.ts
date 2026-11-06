@@ -20,6 +20,23 @@ export interface Verdict {
   vulnerabilities: Array<{ id: string; severity: string | null }>;
 }
 
+export type Outcome = "blocked" | "flagged" | "allowed";
+
+export interface Summary {
+  outcome: Outcome;
+  reason: "osv-malware" | "osv-cve" | null;
+  osvIds: string[];
+}
+
+/** The one place that turns an OSV verdict into a policy outcome. Malware outranks CVEs; CVEs are logged, never blocked. */
+export function summarizeVerdict(verdict: Verdict): Summary {
+  if (verdict.malware.length > 0) return { outcome: "blocked", reason: "osv-malware", osvIds: verdict.malware };
+  if (verdict.vulnerabilities.length > 0) {
+    return { outcome: "flagged", reason: "osv-cve", osvIds: verdict.vulnerabilities.map((v) => v.id) };
+  }
+  return { outcome: "allowed", reason: null, osvIds: [] };
+}
+
 /** Withdrawn advisories are excluded. Returns null when nothing remains, so the key can be deleted. */
 export function buildKvEntry(advisories: Advisory[], updated: string): KvEntry | null {
   const entry: KvEntry = { v: 1, m: [], c: [], u: updated };
