@@ -1,6 +1,4 @@
-import type { Advisory } from "../../packages/core/src/index.js";
-
-const SUMMARY_MAX = 500;
+import { ADVISORY_COLUMNS, advisoryRow, type Advisory } from "../../packages/core/src/index.js";
 
 /** SQLite string literal. Strips NUL, which D1's importer rejects, and doubles single quotes. */
 export function sqlString(value: string | null): string {
@@ -9,24 +7,9 @@ export function sqlString(value: string | null): string {
 }
 
 export function advisoryInsert(a: Advisory): string {
-  const summary = a.summary === null ? null : a.summary.slice(0, SUMMARY_MAX);
-  const values = [
-    sqlString(a.ecosystem),
-    sqlString(a.osvId),
-    sqlString(a.packageName),
-    sqlString(a.namespace),
-    sqlString(a.kind),
-    sqlString(a.cweIds.length > 0 ? a.cweIds.join(",") : null),
-    sqlString(a.severity),
-    sqlString(summary),
-    sqlString(JSON.stringify(a.spec)),
-    a.withdrawn ? "1" : "0",
-    sqlString(a.modified),
-  ];
+  const values = advisoryRow(a).map((value) => (typeof value === "number" ? String(value) : sqlString(value)));
   return (
-    "INSERT OR REPLACE INTO advisories " +
-    "(ecosystem, osv_id, package_name, namespace, kind, cwe_ids, severity, summary, ranges_json, withdrawn, modified) " +
-    `VALUES (${values.join(", ")});`
+    `INSERT OR REPLACE INTO advisories (${ADVISORY_COLUMNS.join(", ")}) ` + `VALUES (${values.join(", ")});`
   );
 }
 

@@ -5,6 +5,7 @@ export * from "./parse/index.js";
 export * from "./version/index.js";
 export * from "./osv/match.js";
 export * from "./osv/distill.js";
+export * from "./osv/advisory-row.js";
 export * from "./osv/index-entry.js";
 export * from "./osv/kv-value.js";
 export * from "./osv/live.js";
