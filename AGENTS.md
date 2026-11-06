@@ -26,7 +26,7 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - Workflow step results are capped at **1 MiB**. Return counts from steps, never record arrays.
 - Never export `CLOUDFLARE_API_TOKEN`. Wrangler reserves it and will abandon its OAuth session.
 - `workers_dev` and `preview_urls` stay `false` on the filter Worker.
-- `ENFORCE` blocks only when it is exactly the string `"true"`. With any other value the filter is observe-only, and a would-be block is recorded as `flagged`, never `blocked`.
+- `ENFORCE` blocks only when it is exactly the string `"true"`. With any other value the filter is observe-only, and a would-be block is recorded as `flagged`, never `blocked`. The committed template stays `"false"`, so a fresh checkout never blocks; the live value is `PKGGUARD_ENFORCE` in `.deploy.env`, applied by the config generator (`applyEnforce`), so a redeploy cannot silently switch it back. Anything but exactly `true` or `false` is an error, and every deploy prints the mode it wrote. Do not edit `ENFORCE` in `wrangler.jsonc`.
 - `Decision.block` is policy; whether a download is stopped is `block && ENFORCE`. Keep those two separate.
 - The live OSV lookup runs only on an index miss, and an incomplete answer (pagination, malformed records) is never cached.
 - Resolve `context.identity()` before returning from `handle`. The context's RPC stubs are not guaranteed to outlive the call, so it cannot be deferred into `waitUntil`.

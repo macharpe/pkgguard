@@ -29,3 +29,10 @@ export function loadDeployEnv(keys: readonly string[], file = ".deploy.env"): Re
   }
   return out;
 }
+
+/** An optional setting: undefined when it is absent or empty. Environment wins over `.deploy.env`. */
+export function loadOptionalDeployEnv(key: string, file = ".deploy.env"): string | undefined {
+  const fromFile = existsSync(file) ? parseEnvFile(readFileSync(file, "utf8")) : {};
+  const value = process.env[key] ?? fromFile[key];
+  return value === undefined || value === "" ? undefined : value;
+}

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generate } from "../generate-deploy-config.js";
-import { FIELD_NAMES, WORKERS, field, renderConfig, validate, type FieldName } from "../lib/deploy-config.js";
+import { ENFORCE_ENV, FIELD_NAMES, WORKERS, applyEnforce, enforcementOf, field, renderConfig, validate, type FieldName } from "../lib/deploy-config.js";
 
 const GOOD = {
   ACCOUNT_ID: "a".repeat(32),
@@ -158,6 +158,69 @@ describe("generate (filesystem)", () => {
   });
   it("rejects an unknown worker", () => {
     expect(() => generate("nope", root)).toThrow(/Unknown worker/);
+  });
+
+  describe("enforcement", () => {
+    const enforce = (target: string): string => /"ENFORCE":\s*"([^"]*)"/.exec(readFileSync(target, "utf8"))?.[1] ?? "missing";
+    afterEach(() => delete process.env[ENFORCE_ENV]);
+
+    it("stays observe-only when nothing is set, so a fresh checkout never blocks", () => {
+      writeEnv(goodEnv());
+      expect(enforce(generate("filter", root))).toBe("false");
+    });
+    it("is switched on by .deploy.env, so every redeploy keeps it on", () => {
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}=true`]);
+      expect(enforce(generate("filter", root))).toBe("true");
+      expect(enforce(generate("filter", root))).toBe("true");
+    });
+    it("can be set explicitly to false", () => {
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}=false`]);
+      expect(enforce(generate("filter", root))).toBe("false");
+    });
+    it("is read from the environment first, then the file", () => {
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}=false`]);
+      process.env[ENFORCE_ENV] = "true";
+      expect(enforce(generate("filter", root))).toBe("true");
+    });
+    it("treats an empty value as unset", () => {
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}=`]);
+      expect(enforce(generate("filter", root))).toBe("false");
+    });
+    it.each(["yes", "True", "TRUE", "1", "on", " true", "true "])("refuses %j rather than quietly meaning off, and writes nothing new", (bad) => {
+      writeEnv(goodEnv());
+      const target = generate("filter", root);
+      const before = readFileSync(target, "utf8");
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}="${bad}"`]);
+      expect(() => generate("filter", root)).toThrow(/exactly "true" or "false"/);
+      expect(readFileSync(target, "utf8")).toBe(before);
+    });
+    it("never touches the template file itself", () => {
+      writeEnv([...goodEnv(), `${ENFORCE_ENV}=true`]);
+      generate("filter", root);
+      expect(readFileSync(join(root, "workers/filter/wrangler.jsonc"), "utf8")).toBe(filterTemplate());
+    });
+  });
+});
+
+describe("applyEnforce and enforcementOf", () => {
+  const template = '{ "vars": { "ENFORCE": "false" } }';
+  it("leaves the text alone when unset or empty", () => {
+    expect(applyEnforce(template, undefined)).toBe(template);
+    expect(applyEnforce(template, "")).toBe(template);
+  });
+  it("replaces exactly the setting", () => {
+    expect(applyEnforce(template, "true")).toBe('{ "vars": { "ENFORCE": "true" } }');
+    expect(applyEnforce(template, "false")).toBe(template);
+  });
+  it("fails on template drift: no setting, or two", () => {
+    expect(() => applyEnforce("{}", "true")).toThrow(/Template drift/);
+    expect(() => applyEnforce(`${template}${template}`, "true")).toThrow(/Template drift/);
+  });
+  it("reports what a generated config will do", () => {
+    expect(enforcementOf('"ENFORCE": "true"')).toBe("ON");
+    expect(enforcementOf('"ENFORCE": "false"')).toBe("off");
+    expect(enforcementOf('"ENFORCE": "yes"')).toBe("off");
+    expect(enforcementOf("{}")).toBe("unknown");
   });
 });
 

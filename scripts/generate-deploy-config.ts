@@ -5,8 +5,8 @@
 import { chmodSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { loadDeployEnv } from "./lib/deploy-env.js";
-import { FIELD_NAMES, WORKERS, field, renderConfig, type FieldName } from "./lib/deploy-config.js";
+import { loadDeployEnv, loadOptionalDeployEnv } from "./lib/deploy-env.js";
+import { ENFORCE_ENV, FIELD_NAMES, WORKERS, applyEnforce, enforcementOf, field, renderConfig, type FieldName } from "./lib/deploy-config.js";
 
 export function generate(worker: string, root = process.cwd(), envFile = join(root, ".deploy.env")): string {
   const expected = WORKERS[worker];
@@ -24,7 +24,8 @@ export function generate(worker: string, root = process.cwd(), envFile = join(ro
     if (value !== undefined) values[name] = value;
   }
 
-  const rendered = renderConfig(readFileSync(templatePath, "utf8"), expected, values);
+  let rendered = renderConfig(readFileSync(templatePath, "utf8"), expected, values);
+  if (worker === "filter") rendered = applyEnforce(rendered, loadOptionalDeployEnv(ENFORCE_ENV, envFile));
 
   const target = join(dir, "wrangler.local.jsonc");
   const tmp = `${target}.${process.pid}.tmp`;
@@ -41,7 +42,9 @@ export function generate(worker: string, root = process.cwd(), envFile = join(ro
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const worker = process.argv[2] ?? "";
   try {
-    console.log(`wrote ${generate(worker)}`);
+    const target = generate(worker);
+    const mode = worker === "filter" ? ` (enforcement: ${enforcementOf(readFileSync(target, "utf8"))})` : "";
+    console.log(`wrote ${target}${mode}`);
   } catch (err) {
     console.error(`deploy config not generated:\n${(err as Error).message}\nSee .deploy.env.example.`);
     process.exit(1);
