@@ -102,3 +102,15 @@ export function versionsLabel(versions: string[] | null): string {
   const shown = versions.slice(0, 3).join(", ");
   return versions.length > 3 ? `${shown} +${versions.length - 3} more` : shown;
 }
+
+export type ReferenceFilter = { state: "empty" } | { state: "partial" } | { state: "valid"; value: string };
+
+/**
+ * What to do with the text typed into the reference box. Only a complete reference is sent to the server, so a
+ * half-typed one neither errors nor wipes the list; it also accepts any case and stray spaces, as the API does.
+ */
+export function referenceFilter(text: string): ReferenceFilter {
+  const value = text.trim().toUpperCase();
+  if (value === "") return { state: "empty" };
+  return /^PG-[0-9A-HJKMNP-TV-Z]{6}$/.test(value) ? { state: "valid", value } : { state: "partial" };
+}

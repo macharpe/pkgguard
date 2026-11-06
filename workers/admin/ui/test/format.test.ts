@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDuration, isActive, kindLabel, osvUrl, parseVersionsInput, plural, runDuration, runSummary, triggerLabel, versionsLabel, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
+import { formatCount, formatDuration, isActive, kindLabel, osvUrl, parseVersionsInput, plural, referenceFilter, runDuration, runSummary, triggerLabel, versionsLabel, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString();
@@ -156,4 +156,19 @@ describe("versionsLabel", () => {
     expect(versionsLabel(["1", "2", "3"])).toBe("1, 2, 3");
     expect(versionsLabel(["1", "2", "3", "4", "5"])).toBe("1, 2, 3 +2 more");
   });
+});
+
+describe("referenceFilter", () => {
+  it("treats blank input as no filter", () => {
+    expect(referenceFilter("")).toEqual({ state: "empty" });
+    expect(referenceFilter("   ")).toEqual({ state: "empty" });
+  });
+  it("accepts a complete reference in any case and with stray spaces, and normalises it", () => {
+    expect(referenceFilter("PG-7Q2K4M")).toEqual({ state: "valid", value: "PG-7Q2K4M" });
+    expect(referenceFilter(" pg-7q2k4m ")).toEqual({ state: "valid", value: "PG-7Q2K4M" });
+  });
+  it.each(["P", "PG-", "PG-7Q2K4", "PG-7Q2K4MM", "7Q2K4M", "PG-7Q2K4I", "PG-7Q2K4O", "XX-7Q2K4M", "PG 7Q2K4M"])(
+    "waits, without querying, while %s is not a full reference",
+    (text) => expect(referenceFilter(text)).toEqual({ state: "partial" }),
+  );
 });

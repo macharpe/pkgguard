@@ -98,7 +98,7 @@ export const postJson = <T>(path: string, signal?: AbortSignal, fetchFn: FetchFn
 export const api = {
   status: (signal?: AbortSignal) => getJson<StatusResponse>("/api/status", {}, signal),
   whoami: (signal?: AbortSignal) => getJson<WhoamiResponse>("/api/whoami", {}, signal),
-  detections: (params: { verdict?: string; ecosystem?: string; before?: string }, signal?: AbortSignal) =>
+  detections: (params: { verdict?: string; ecosystem?: string; reference?: string; before?: string }, signal?: AbortSignal) =>
     getJson<DetectionsResponse>("/api/detections", { limit: "25", ...params }, signal),
   advisories: (params: { q: string; version?: string; ecosystem?: string }, signal?: AbortSignal) =>
     getJson<AdvisoriesResponse>("/api/advisories", params, signal),

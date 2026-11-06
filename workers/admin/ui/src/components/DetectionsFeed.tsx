@@ -1,6 +1,7 @@
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Empty } from "@cloudflare/kumo/components/empty";
+import { Input } from "@cloudflare/kumo/components/input";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { Select } from "@cloudflare/kumo/components/select";
 import { Table } from "@cloudflare/kumo/components/table";
@@ -8,7 +9,7 @@ import { Text } from "@cloudflare/kumo/components/text";
 import { useCallback, useEffect, useState } from "react";
 import type { DetectionRow, DetectionsResponse } from "../../../src/api-types.js";
 import { api } from "../api.js";
-import { packageLabel, relativeTime, splitIds } from "../format.js";
+import { packageLabel, referenceFilter, relativeTime, splitIds } from "../format.js";
 import { useResource } from "../useResource.js";
 import { VerdictBadge } from "./VerdictBadge.js";
 
@@ -18,10 +19,17 @@ const ECOSYSTEMS = { all: "All ecosystems", npm: "npm", pypi: "PyPI" };
 export function DetectionsFeed({ now }: { now: number }) {
   const [verdict, setVerdict] = useState("all");
   const [ecosystem, setEcosystem] = useState("all");
-  const filters = { ...(verdict !== "all" ? { verdict } : {}), ...(ecosystem !== "all" ? { ecosystem } : {}) };
+  const [referenceText, setReferenceText] = useState("");
+  const reference = referenceFilter(referenceText);
+  const referenceValue = reference.state === "valid" ? reference.value : "";
+  const filters = {
+    ...(verdict !== "all" ? { verdict } : {}),
+    ...(ecosystem !== "all" ? { ecosystem } : {}),
+    ...(referenceValue !== "" ? { reference: referenceValue } : {}),
+  };
 
   // The first page refreshes on its own; older pages are appended by hand and stay put.
-  const first = useResource<DetectionsResponse>((signal) => api.detections(filters, signal), [verdict, ecosystem], 15_000);
+  const first = useResource<DetectionsResponse>((signal) => api.detections(filters, signal), [verdict, ecosystem, referenceValue], 15_000);
   const [older, setOlder] = useState<DetectionRow[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -31,7 +39,7 @@ export function DetectionsFeed({ now }: { now: number }) {
     setOlder([]);
     setCursor(null);
     setMoreError(null);
-  }, [verdict, ecosystem]);
+  }, [verdict, ecosystem, referenceValue]);
 
   const nextBefore = older.length > 0 ? cursor : (first.data?.nextBefore ?? null);
 
@@ -49,7 +57,7 @@ export function DetectionsFeed({ now }: { now: number }) {
       setLoadingMore(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextBefore, verdict, ecosystem]);
+  }, [nextBefore, verdict, ecosystem, referenceValue]);
 
   const rows = [...(first.data?.items ?? []), ...older.filter((o) => !first.data?.items.some((f) => f.id === o.id))];
 
@@ -64,7 +72,17 @@ export function DetectionsFeed({ now }: { now: number }) {
             What the filter saw on package downloads. Refreshes every 15 seconds.
           </Text>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-40">
+            <Input
+              label="Reference"
+              size="sm"
+              placeholder="PG-7Q2K4M"
+              value={referenceText}
+              onChange={(e) => setReferenceText(e.target.value)}
+              {...(reference.state === "partial" ? { description: "Waiting for a full reference" } : {})}
+            />
+          </div>
           <Select label="Verdict" value={verdict} onValueChange={(v) => setVerdict(String(v))} items={VERDICTS} size="sm" />
           <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(String(v))} items={ECOSYSTEMS} size="sm" />
         </div>
@@ -77,7 +95,11 @@ export function DetectionsFeed({ now }: { now: number }) {
           <Loader />
         </div>
       ) : rows.length === 0 ? (
-        <Empty title="No detections yet" description="Package downloads from enrolled devices will appear here." />
+        reference.state === "valid" ? (
+          <Empty title="No block with that reference" description="Check the code with the person who was blocked, or clear the filters." />
+        ) : (
+          <Empty title="No detections yet" description="Package downloads from enrolled devices will appear here." />
+        )
       ) : (
         <div className="overflow-x-auto rounded-xl border border-kumo-line">
           <Table>
@@ -88,6 +110,7 @@ export function DetectionsFeed({ now }: { now: number }) {
                 <Table.Head>Package</Table.Head>
                 <Table.Head>Advisories</Table.Head>
                 <Table.Head>Source</Table.Head>
+                <Table.Head>Reference</Table.Head>
                 <Table.Head>User</Table.Head>
               </Table.Row>
             </Table.Header>
@@ -119,6 +142,9 @@ export function DetectionsFeed({ now }: { now: number }) {
                       )}
                     </Table.Cell>
                     <Table.Cell>{row.source ?? "—"}</Table.Cell>
+                    <Table.Cell>
+                      {row.reference ? <span className="font-mono text-xs select-all">{row.reference}</span> : <span className="text-kumo-inactive">—</span>}
+                    </Table.Cell>
                     <Table.Cell>
                       <span className="text-sm">{row.user_email ?? "—"}</span>
                     </Table.Cell>

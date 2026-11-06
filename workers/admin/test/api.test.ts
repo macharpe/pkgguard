@@ -176,6 +176,38 @@ describe("GET /api/detections", () => {
     expect((await get("?ecosystem=npm")).items.map((i: any) => i.package_name)).toEqual(["n2", "n1"]);
     expect((await get("?verdict=blocked&ecosystem=npm")).items.map((i: any) => i.package_name)).toEqual(["n1"]);
   });
+  it("returns the reference of each row, null where there is none", async () => {
+    await addDetection({ package_name: "clean" });
+    await addDetection({ package_name: "bad", verdict: "blocked", reference: "PG-7Q2K4M" });
+    expect((await get()).items.map((i: any) => [i.package_name, i.reference])).toEqual([["bad", "PG-7Q2K4M"], ["clean", null]]);
+  });
+  it("finds a block from the reference a developer quotes, in any case and with stray spaces", async () => {
+    await addDetection({ package_name: "other", verdict: "blocked", reference: "PG-AAAAAA" });
+    await addDetection({ package_name: "wanted", verdict: "blocked", reference: "PG-7Q2K4M" });
+    await addDetection({ package_name: "none" });
+    for (const q of ["PG-7Q2K4M", "pg-7q2k4m", "%20PG-7Q2K4M%20"]) {
+      expect((await get(`?reference=${q}`)).items.map((i: any) => i.package_name), q).toEqual(["wanted"]);
+    }
+  });
+  it("combines the reference with the other filters, and an unknown one finds nothing", async () => {
+    await addDetection({ package_name: "wanted", verdict: "blocked", reference: "PG-7Q2K4M" });
+    expect((await get("?reference=PG-7Q2K4M&verdict=blocked")).items).toHaveLength(1);
+    expect((await get("?reference=PG-7Q2K4M&verdict=flagged")).items).toHaveLength(0);
+    expect((await get("?reference=PG-ZZZZZZ")).items).toEqual([]);
+  });
+  it("treats an empty reference as no filter", async () => {
+    await addDetection({});
+    expect((await get("?reference=")).items).toHaveLength(1);
+    expect((await get("?reference=%20%20")).items).toHaveLength(1);
+  });
+  it.each(["PG-7Q2K4", "PG-7Q2K4MM", "XX-7Q2K4M", "7Q2K4M", "PG-7Q2K4I", "PG-7Q2K4M' OR '1'='1", "PG-%25%25%25%25%25%25", "<script>"])(
+    "rejects the malformed reference %s with 400 and says why",
+    async (q) => {
+      const r = await call(`/api/detections?reference=${encodeURIComponent(decodeURIComponent(q))}`, await user(AUD));
+      expect(r.status).toBe(400);
+      expect(((await r.json()) as { error: string }).error).toBe("reference must look like PG-7Q2K4M");
+    },
+  );
   it("paginates with a keyset cursor without gaps or repeats", async () => {
     for (let i = 1; i <= 7; i++) await addDetection({ package_name: `p${i}` });
     const first = await get("?limit=3");

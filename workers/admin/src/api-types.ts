@@ -16,6 +16,8 @@ export interface DetectionRow {
   user_email: string | null;
   src_ip: string | null;
   source: string | null;
+  /** Quoted by the developer who was blocked; set only for malware decisions. */
+  reference: string | null;
 }
 
 export interface DetectionsResponse {

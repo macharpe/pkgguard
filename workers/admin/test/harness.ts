@@ -77,11 +77,11 @@ export async function call(path: string, token: string | null, init: RequestInit
 export const iso = (offsetSeconds = 0): string => new Date((NOW_S + offsetSeconds) * 1000).toISOString();
 
 export async function addDetection(row: Partial<Record<string, string | null>> & { ts?: string }): Promise<void> {
-  const r = { ts: iso(-60), ecosystem: "npm", package_name: "left-pad", version: "1.0.0", purl: null, verdict: "allowed", reason: null, osv_ids: null, user_email: "demo@example.com", src_ip: "203.0.113.9", source: "index", ...row };
+  const r = { ts: iso(-60), ecosystem: "npm", package_name: "left-pad", version: "1.0.0", purl: null, verdict: "allowed", reason: null, osv_ids: null, user_email: "demo@example.com", src_ip: "203.0.113.9", source: "index", reference: null, ...row };
   await env.DB.prepare(
-    "INSERT INTO detections (ts, ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO detections (ts, ecosystem, package_name, version, purl, verdict, reason, osv_ids, user_email, src_ip, source, reference) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
   )
-    .bind(r.ts, r.ecosystem, r.package_name, r.version, r.purl, r.verdict, r.reason, r.osv_ids, r.user_email, r.src_ip, r.source)
+    .bind(r.ts, r.ecosystem, r.package_name, r.version, r.purl, r.verdict, r.reason, r.osv_ids, r.user_email, r.src_ip, r.source, r.reference)
     .run();
 }
 
