@@ -10,3 +10,4 @@ export * from "./osv/index-entry.js";
 export * from "./osv/kv-value.js";
 export * from "./osv/live.js";
 export * from "./override.js";
+export * from "./notify.js";
