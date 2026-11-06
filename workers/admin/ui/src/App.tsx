@@ -5,6 +5,7 @@ import { api } from "./api.js";
 import { DetectionsFeed } from "./components/DetectionsFeed.js";
 import { Header } from "./components/Header.js";
 import { PackageLookup } from "./components/PackageLookup.js";
+import { RefreshPanel } from "./components/RefreshPanel.js";
 import { StatusCards } from "./components/StatusCards.js";
 import { useResource } from "./useResource.js";
 
@@ -45,6 +46,7 @@ export default function App() {
         {sessionEnded ? null : (
           <>
             {status.data ? <StatusCards status={status.data} now={now} /> : null}
+            <RefreshPanel now={now} onFinished={status.reload} />
             <PackageLookup />
             <DetectionsFeed now={now} />
           </>

@@ -19,7 +19,21 @@ export const fakeAssets = {
   },
 } as unknown as Fetcher;
 
-export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, ASSETS: fakeAssets, TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ...over });
+export const workflowCalls: Array<{ id: string; params: unknown }> = [];
+export const failNextWorkflowCreate = { value: false };
+/** Records start requests instead of running anything. */
+export const fakeRefresh = {
+  create: async (options: { id: string; params: unknown }) => {
+    if (failNextWorkflowCreate.value) {
+      failNextWorkflowCreate.value = false;
+      throw new Error("workflow service unavailable");
+    }
+    workflowCalls.push(options);
+    return { id: options.id };
+  },
+} as unknown as Workflow;
+
+export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, ASSETS: fakeAssets, REFRESH: fakeRefresh, TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ...over });
 
 let key: TestKey;
 export async function setup(): Promise<void> {
@@ -31,7 +45,11 @@ export async function setup(): Promise<void> {
     env.DB.prepare("DELETE FROM advisories"),
     env.DB.prepare("DELETE FROM sync_state"),
     env.DB.prepare("DELETE FROM refresh_runs"),
+    env.DB.prepare("DELETE FROM refresh_items"),
+    env.DB.prepare("DELETE FROM audit_log"),
   ]);
+  workflowCalls.length = 0;
+  failNextWorkflowCreate.value = false;
   const list = await env.PKG_INDEX.list();
   await Promise.all(list.keys.map((k) => env.PKG_INDEX.delete(k.name)));
 }

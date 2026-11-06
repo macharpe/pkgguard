@@ -1,10 +1,15 @@
 import { AccessError, readAssertion, verifyAccessJwt, type Actor } from "./access-jwt.js";
 import { advisories } from "./api/advisories.js";
 import { detections } from "./api/detections.js";
+import { refreshHistory, refreshStatus, startRefresh } from "./api/refresh.js";
 import { status } from "./api/status.js";
 import { whoami } from "./api/whoami.js";
 import type { Env } from "./env.js";
 import { HttpError, errorResponse, json } from "./http.js";
+import { launchRefresh } from "./refresh/launch.js";
+import type { RunKind } from "./refresh/runs.js";
+
+export { RefreshWorkflow } from "./refresh/workflow.js";
 
 /** No inline script is allowed: the theme bootstrap is an external file. Kumo/Base UI set inline styles, hence style-src. */
 const CSP =
@@ -38,10 +43,23 @@ export async function authenticate(request: Request, env: Env, deps: Deps): Prom
   return actor;
 }
 
+/**
+ * The Access cookie is sent on cross-site requests, so a page on another origin could otherwise POST here as the user.
+ * A custom header cannot be sent cross-origin without a CORS preflight, and this Worker never approves one.
+ */
+export const CSRF_HEADER = "x-pkgguard-csrf";
+function requireCsrfHeader(request: Request): void {
+  if (request.headers.get(CSRF_HEADER) !== "1") throw new HttpError(403, "missing CSRF header");
+}
+
 export async function route(request: Request, env: Env, deps: Deps): Promise<Response> {
   const url = new URL(request.url);
   const actor = await authenticate(request, env, deps);
 
+  if (request.method === "POST" && url.pathname === "/api/refresh") {
+    requireCsrfHeader(request);
+    return startRefresh(env, actor, deps.now());
+  }
   if (request.method !== "GET" && request.method !== "HEAD") throw new HttpError(405, "method not allowed");
 
   switch (url.pathname) {
@@ -53,7 +71,10 @@ export async function route(request: Request, env: Env, deps: Deps): Promise<Res
       return detections(env, url);
     case "/api/advisories":
       return advisories(env, url);
+    case "/api/refresh/history":
+      return refreshHistory(env, url);
     default:
+      if (url.pathname.startsWith("/api/refresh/")) return refreshStatus(env, url.pathname.slice("/api/refresh/".length), deps.now());
       if (isApiPath(url.pathname)) throw new HttpError(404, "not found");
       return serveAsset(request, env);
   }
@@ -89,6 +110,22 @@ export async function handle(request: Request, env: Env, deps: Deps): Promise<Re
   }
 }
 
+const CRON_KINDS: Record<string, RunKind> = { "0 3 1 * *": "monthly", "0 4 * * *": "daily" };
+
+/** Runs the same idempotent delta as a manual refresh. Skips quietly if one is already running. */
+export async function runScheduled(controller: Pick<ScheduledController, "cron" | "scheduledTime">, env: Env): Promise<void> {
+  const kind = CRON_KINDS[controller.cron];
+  if (kind === undefined) {
+    console.error("unknown cron schedule", controller.cron);
+    return;
+  }
+  const result = await launchRefresh(env, { kind, trigger: "cron" }, new Date(controller.scheduledTime));
+  if (!result.started) console.log("refresh skipped: one is already running", result.activeId);
+}
+
 export default {
   fetch: (request: Request, env: Env): Promise<Response> => handle(request, env, { now: () => new Date() }),
+  scheduled: (controller: ScheduledController, env: Env, ctx: ExecutionContext): void => {
+    ctx.waitUntil(runScheduled(controller, env));
+  },
 } satisfies ExportedHandler<Env>;

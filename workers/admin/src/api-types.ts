@@ -25,9 +25,9 @@ export interface DetectionsResponse {
 
 export interface RefreshRun {
   id: string;
-  kind: string;
+  kind: "monthly" | "daily" | "manual";
   trigger: string;
-  status: string;
+  status: "queued" | "running" | "complete" | "failed";
   phase: string | null;
   items_done: number;
   items_total: number;
@@ -35,8 +35,22 @@ export interface RefreshRun {
   updated: number;
   removed: number;
   errors: number;
+  error_detail: string | null;
   started_at: string;
   finished_at: string | null;
+}
+
+/** A run plus an estimate of the seconds left, null while it cannot be estimated. */
+export interface RefreshRunInfo extends RefreshRun {
+  etaSeconds: number | null;
+}
+
+export interface RefreshHistoryResponse {
+  items: RefreshRun[];
+}
+
+export interface StartRefreshResponse {
+  runId: string;
 }
 
 export interface StatusResponse {

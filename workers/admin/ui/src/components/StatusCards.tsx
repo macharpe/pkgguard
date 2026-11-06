@@ -42,7 +42,7 @@ export function StatusCards({ status, now }: { status: StatusResponse; now: numb
           {recent.error > 0 ? ` · ${formatCount(recent.error)} errors` : ""}
         </Card>
         <Card title="Index last synced" value={newest ? relativeTime(newest, now) : "never"}>
-          {formatCount(ecosystems.reduce((n, e) => n + e.record_count, 0))} packages indexed
+          {formatCount(ecosystems.reduce((n, e) => n + e.record_count, 0))} OSV records
         </Card>
       </div>
     </section>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, osvUrl, plural, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
+import { formatCount, formatDuration, isActive, kindLabel, osvUrl, plural, runDuration, runSummary, triggerLabel, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString();
@@ -81,5 +81,60 @@ describe("plural", () => {
   it("defaults to adding an s and groups large counts", () => {
     expect(plural(2, "package")).toBe("2 packages");
     expect(plural(1234, "package")).toBe("1,234 packages");
+  });
+});
+
+describe("formatDuration", () => {
+  it.each([[0, "0s"], [44.4, "44s"], [59.6, "1m 00s"], [60, "1m 00s"], [200, "3m 20s"], [3599, "59m 59s"], [3600, "1h 00m"], [3900, "1h 05m"], [-5, "0s"]])("%d seconds reads %j", (s, expected) => {
+    expect(formatDuration(s)).toBe(expected);
+  });
+});
+
+describe("runDuration", () => {
+  it("is the time between start and finish, and null while running or on bad data", () => {
+    expect(runDuration({ started_at: "2026-11-07T00:00:00Z", finished_at: "2026-11-07T00:03:20Z" })).toBe(200);
+    expect(runDuration({ started_at: "2026-11-07T00:00:00Z", finished_at: null })).toBeNull();
+    expect(runDuration({ started_at: "garbage", finished_at: "2026-11-07T00:03:20Z" })).toBeNull();
+    expect(runDuration({ started_at: "2026-11-07T00:03:20Z", finished_at: "2026-11-07T00:00:00Z" })).toBeNull();
+  });
+});
+
+describe("isActive", () => {
+  it("is true only for queued and running", () => {
+    expect(isActive({ status: "queued" })).toBe(true);
+    expect(isActive({ status: "running" })).toBe(true);
+    expect(isActive({ status: "complete" })).toBe(false);
+    expect(isActive({ status: "failed" })).toBe(false);
+    expect(isActive(null)).toBe(false);
+    expect(isActive(undefined)).toBe(false);
+  });
+});
+
+describe("kindLabel / triggerLabel", () => {
+  it("labels every kind", () => {
+    expect([kindLabel("manual"), kindLabel("daily"), kindLabel("monthly")]).toEqual(["Manual", "Daily", "Monthly"]);
+  });
+  it("shows people as their email and machines as what they are", () => {
+    expect(triggerLabel("cron")).toBe("Scheduled");
+    expect(triggerLabel("service-token:abc.access")).toBe("Service token");
+    expect(triggerLabel("ops@example.com")).toBe("ops@example.com");
+  });
+});
+
+describe("runSummary", () => {
+  const base = { status: "complete" as const, added: 13, updated: 4, removed: 0, errors: 0, error_detail: null };
+  it("summarises a clean run", () => {
+    expect(runSummary(base)).toBe("13 added · 4 updated");
+  });
+  it("mentions withdrawn records and records to retry only when there are some", () => {
+    expect(runSummary({ ...base, removed: 2, errors: 3 })).toBe("13 added · 4 updated · 2 withdrawn · 3 to retry");
+    expect(runSummary({ ...base, added: 1234 })).toBe("1,234 added · 4 updated");
+  });
+  it("shows the reason for a failure, or a plain Failed without one", () => {
+    expect(runSummary({ ...base, status: "failed", error_detail: "no sync state for npm" })).toBe("no sync state for npm");
+    expect(runSummary({ ...base, status: "failed" })).toBe("Failed");
+  });
+  it("says in progress for an unfinished run", () => {
+    expect(runSummary({ ...base, status: "running" as never })).toBe("In progress");
   });
 });

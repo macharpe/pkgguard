@@ -1,4 +1,4 @@
-import type { DetectionVerdict } from "../../src/api-types.js";
+import type { DetectionVerdict, RefreshRun } from "../../src/api-types.js";
 
 export const plural = (n: number, singular: string, pluralForm = `${singular}s`): string => `${formatCount(n)} ${n === 1 ? singular : pluralForm}`;
 
@@ -54,4 +54,39 @@ export function simulationLabel(outcome: DetectionVerdict): string {
     case "error":
       return "Index entry unreadable";
   }
+}
+
+/** "45s", "3m 20s", "1h 05m". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+}
+
+export const runDuration = (run: Pick<RefreshRun, "started_at" | "finished_at">): number | null => {
+  if (run.finished_at === null) return null;
+  const ms = Date.parse(run.finished_at) - Date.parse(run.started_at);
+  return Number.isFinite(ms) && ms >= 0 ? ms / 1000 : null;
+};
+
+export const isActive = (run: Pick<RefreshRun, "status"> | null | undefined): boolean => run?.status === "queued" || run?.status === "running";
+
+export const kindLabel = (kind: RefreshRun["kind"]): string => ({ manual: "Manual", daily: "Daily", monthly: "Monthly" })[kind];
+
+/** "cron" and "service-token:…" read badly in a table; people are shown as their email. */
+export function triggerLabel(trigger: string): string {
+  if (trigger === "cron") return "Scheduled";
+  if (trigger.startsWith("service-token:")) return "Service token";
+  return trigger;
+}
+
+export function runSummary(run: Pick<RefreshRun, "status" | "added" | "updated" | "removed" | "errors" | "error_detail">): string {
+  if (run.status === "failed") return run.error_detail ?? "Failed";
+  if (run.status !== "complete") return "In progress";
+  const parts = [`${formatCount(run.added)} added`, `${formatCount(run.updated)} updated`];
+  if (run.removed > 0) parts.push(`${formatCount(run.removed)} withdrawn`);
+  if (run.errors > 0) parts.push(`${formatCount(run.errors)} to retry`);
+  return parts.join(" · ");
 }

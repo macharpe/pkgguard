@@ -10,6 +10,11 @@
   "preview_urls": false,
   "routes": [{ "pattern": "pkgguard.example.com", "custom_domain": true }],
   "observability": { "enabled": true },
+  "workflows": [{ "name": "pkgguard-refresh", "binding": "REFRESH", "class_name": "RefreshWorkflow" }],
+  // 03:00 UTC on the 1st (monthly) and 04:00 UTC daily. Both run the same idempotent delta.
+  "triggers": { "crons": ["0 3 1 * *", "0 4 * * *"] },
+  // A refresh makes a fetch, and D1/KV calls, per record. The default is 10,000 per instance.
+  "limits": { "subrequests": 50000 },
   "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
   "kv_namespaces": [{ "binding": "PKG_INDEX", "id": "00000000000000000000000000000001" }],
   "d1_databases": [

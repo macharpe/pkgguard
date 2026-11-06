@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, getJson, type FetchFn } from "../src/api.js";
+import { ApiError, CSRF_HEADER, getJson, postJson, type FetchFn } from "../src/api.js";
 
 const respond = (body: unknown, init: ResponseInit = {}): FetchFn => async () => Response.json(body, init);
 const opaqueRedirect = (): FetchFn => async () => ({ type: "opaqueredirect", status: 0, ok: false }) as unknown as Response;
@@ -79,5 +79,49 @@ describe("other failures", () => {
       throw abort;
     }).catch((e: unknown) => e)) as unknown;
     expect(err).toBe(abort);
+  });
+});
+
+describe("postJson", () => {
+  it("sends a POST with the CSRF header, no redirect-following and same-origin credentials", async () => {
+    const { fn, seen } = capture();
+    await postJson("/api/refresh", undefined, fn);
+    expect(seen[0]?.url).toBe("/api/refresh");
+    expect(seen[0]?.init.method).toBe("POST");
+    expect((seen[0]?.init.headers as Record<string, string>)[CSRF_HEADER]).toBe("1");
+    expect(seen[0]?.init.redirect).toBe("manual");
+    expect(seen[0]?.init.credentials).toBe("same-origin");
+  });
+  it("never sends the CSRF header on a read", async () => {
+    const { fn, seen } = capture();
+    await getJson("/api/x", {}, undefined, fn);
+    expect((seen[0]?.init.headers as Record<string, string>)[CSRF_HEADER]).toBeUndefined();
+    expect(seen[0]?.init.method).toBe("GET");
+  });
+  it("returns the parsed body", async () => {
+    expect(await postJson("/api/refresh", undefined, respond({ runId: "abc" }, { status: 202 }))).toEqual({ runId: "abc" });
+  });
+  it("carries the JSON body of a 409, so the caller can follow the run already in progress", async () => {
+    const err = await fails(postJson("/api/refresh", undefined, respond({ error: "a refresh is already running", runId: "run-9" }, { status: 409 })));
+    expect(err).toMatchObject({ kind: "http", status: 409, message: "a refresh is already running", body: { runId: "run-9" } });
+  });
+  it("does not call a 403 on a write a session problem: it can be the CSRF guard, and Sign in would not help", async () => {
+    const err = await fails(postJson("/api/refresh", undefined, respond({ error: "missing CSRF header" }, { status: 403 })));
+    expect(err).toMatchObject({ kind: "http", status: 403, message: "missing CSRF header" });
+  });
+  it("still treats an opaque redirect and a 401 on a write as an ended session", async () => {
+    expect((await fails(postJson("/api/refresh", undefined, opaqueRedirect()))).kind).toBe("session");
+    expect((await fails(postJson("/api/refresh", undefined, respond({}, { status: 401 })))).kind).toBe("session");
+  });
+  it("reports a network failure", async () => {
+    const err = await fails(postJson("/api/refresh", undefined, async () => { throw new TypeError("Failed to fetch"); }));
+    expect(err.kind).toBe("network");
+  });
+});
+
+describe("error bodies", () => {
+  it("is undefined when the body is not JSON, and when it is not an object", async () => {
+    expect((await fails(getJson("/api/x", {}, undefined, async () => new Response("<html>", { status: 502 })))).body).toBeUndefined();
+    expect((await fails(getJson("/api/x", {}, undefined, respond([1, 2], { status: 500 })))).body).toBeUndefined();
   });
 });
