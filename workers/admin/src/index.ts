@@ -63,10 +63,12 @@ export async function route(request: Request, env: Env, deps: Deps): Promise<Res
     requireCsrfHeader(request);
     return startRefresh(env, actor, deps.now());
   }
-  if (url.pathname === "/api/overrides" && (request.method === "POST" || request.method === "DELETE")) {
+  // Only GET and POST: the zone's managed WAF blocks every other method ("Anomaly:Method - Not GET or POST"),
+  // so removal is a POST to its own path rather than a DELETE.
+  if (request.method === "POST" && (url.pathname === "/api/overrides" || url.pathname === "/api/overrides/remove")) {
     requireCsrfHeader(request);
     const context = { env, actor, now: deps.now(), waitUntil: deps.waitUntil };
-    return request.method === "POST" ? overridesAdd(request, context) : overridesRemove(request, context);
+    return url.pathname === "/api/overrides" ? overridesAdd(request, context) : overridesRemove(request, context);
   }
   if (request.method !== "GET" && request.method !== "HEAD") throw new HttpError(405, "method not allowed");
 

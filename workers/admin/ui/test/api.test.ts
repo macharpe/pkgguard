@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, CSRF_HEADER, deleteJson, getJson, postJson, type FetchFn } from "../src/api.js";
+import { ApiError, CSRF_HEADER, api, getJson, postJson, type FetchFn } from "../src/api.js";
 
 const respond = (body: unknown, init: ResponseInit = {}): FetchFn => async () => Response.json(body, init);
 const opaqueRedirect = (): FetchFn => async () => ({ type: "opaqueredirect", status: 0, ok: false }) as unknown as Response;
@@ -126,7 +126,7 @@ describe("error bodies", () => {
   });
 });
 
-describe("JSON bodies and DELETE", () => {
+describe("JSON bodies", () => {
   it("postJson sends the body as JSON with a content type, and the CSRF header", async () => {
     const { fn, seen } = capture();
     await postJson("/api/overrides", undefined, fn, { name: "left-pad", versions: ["1.0.0"] });
@@ -142,15 +142,36 @@ describe("JSON bodies and DELETE", () => {
     expect((seen[0]?.init.headers as Record<string, string>)["content-type"]).toBeUndefined();
     expect(seen[0]?.init.body).toBeUndefined();
   });
-  it("deleteJson sends a DELETE with a JSON body and the CSRF header", async () => {
-    const { fn, seen } = capture();
-    await deleteJson("/api/overrides", { ecosystem: "npm", name: "left-pad", mode: "block" }, undefined, fn);
-    expect(seen[0]?.init.method).toBe("DELETE");
+  it("never uses a method other than GET or POST: the zone's WAF blocks the rest", async () => {
+    const methods: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => (methods.push(String(init.method)), Response.json({ items: [], created: true, item: {}, removed: {}, runId: "x" }))) as unknown as typeof fetch;
+    try {
+      await api.overrides();
+      await api.addOverride({ ecosystem: "npm", name: "x", mode: "block" });
+      await api.removeOverride({ ecosystem: "npm", name: "x", mode: "block" });
+      await api.startRefresh();
+      await api.status();
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(methods.every((m) => m === "GET" || m === "POST")).toBe(true);
+    expect(methods).toEqual(["GET", "POST", "POST", "POST", "GET"]);
+  });
+  it("removal is a POST with the override in the body, to its own path, with the CSRF header", async () => {
+    const seen: Array<{ url: string; init: RequestInit }> = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init: RequestInit) => (seen.push({ url, init }), Response.json({ removed: {} }))) as unknown as typeof fetch;
+    try {
+      await api.removeOverride({ ecosystem: "npm", name: "left-pad", mode: "block" });
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(seen[0]?.url).toBe("/api/overrides/remove");
+    expect(seen[0]?.init.method).toBe("POST");
     expect(JSON.parse(seen[0]?.init.body as string)).toEqual({ ecosystem: "npm", name: "left-pad", mode: "block" });
-    const headers = seen[0]?.init.headers as Record<string, string>;
-    expect(headers["content-type"]).toBe("application/json");
-    expect(headers[CSRF_HEADER]).toBe("1");
-    expect(seen[0]?.init.redirect).toBe("manual");
+    expect((seen[0]?.init.headers as Record<string, string>)[CSRF_HEADER]).toBe("1");
+    expect((seen[0]?.init.headers as Record<string, string>)["content-type"]).toBe("application/json");
   });
   it("never sends a body or content type on a read", async () => {
     const { fn, seen } = capture();
@@ -158,12 +179,7 @@ describe("JSON bodies and DELETE", () => {
     expect(seen[0]?.init.body).toBeUndefined();
     expect((seen[0]?.init.headers as Record<string, string>)["content-type"]).toBeUndefined();
   });
-  it("a 403 on a DELETE is not a session problem, and a 404 carries the server's message", async () => {
-    expect(await fails(deleteJson("/api/overrides", {}, undefined, respond({ error: "missing CSRF header" }, { status: 403 })))).toMatchObject({ kind: "http", status: 403, message: "missing CSRF header" });
-    expect(await fails(deleteJson("/api/overrides", {}, undefined, respond({ error: "no such override" }, { status: 404 })))).toMatchObject({ kind: "http", status: 404, message: "no such override" });
-  });
-  it("an ended session on a DELETE is still recognised", async () => {
-    expect((await fails(deleteJson("/api/overrides", {}, undefined, opaqueRedirect()))).kind).toBe("session");
-    expect((await fails(deleteJson("/api/overrides", {}, undefined, respond({}, { status: 401 })))).kind).toBe("session");
+  it("a 404 on a write carries the server's message", async () => {
+    expect(await fails(postJson("/api/overrides/remove", undefined, respond({ error: "no such override" }, { status: 404 }), {}))).toMatchObject({ kind: "http", status: 404, message: "no such override" });
   });
 });

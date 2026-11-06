@@ -34,7 +34,7 @@ export class ApiError extends Error {
 
 export type FetchFn = (input: string, init: RequestInit) => Promise<Response>;
 
-type Method = "GET" | "POST" | "DELETE";
+type Method = "GET" | "POST";
 
 async function request<T>(
   method: Method,
@@ -49,7 +49,7 @@ async function request<T>(
   const url = query.size > 0 ? `${path}?${query}` : path;
   const headers: Record<string, string> = {
     accept: "application/json",
-    ...(method !== "GET" ? { [CSRF_HEADER]: "1" } : {}),
+    ...(method === "POST" ? { [CSRF_HEADER]: "1" } : {}),
     ...(json !== undefined ? { "content-type": "application/json" } : {}),
   };
 
@@ -95,9 +95,6 @@ export const getJson = <T>(path: string, params: Record<string, string | undefin
 export const postJson = <T>(path: string, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n), json?: unknown): Promise<T> =>
   request<T>("POST", path, {}, signal, fetchFn, json);
 
-export const deleteJson = <T>(path: string, json: unknown, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n)): Promise<T> =>
-  request<T>("DELETE", path, {}, signal, fetchFn, json);
-
 export const api = {
   status: (signal?: AbortSignal) => getJson<StatusResponse>("/api/status", {}, signal),
   whoami: (signal?: AbortSignal) => getJson<WhoamiResponse>("/api/whoami", {}, signal),
@@ -109,6 +106,6 @@ export const api = {
   refreshRun: (id: string, signal?: AbortSignal) => getJson<RefreshRunInfo>(`/api/refresh/${encodeURIComponent(id)}`, {}, signal),
   overrides: (signal?: AbortSignal) => getJson<OverridesResponse>("/api/overrides", {}, signal),
   addOverride: (body: AddOverrideRequest) => postJson<AddOverrideResponse>("/api/overrides", undefined, undefined, body),
-  removeOverride: (body: RemoveOverrideRequest) => deleteJson<RemoveOverrideResponse>("/api/overrides", body),
+  removeOverride: (body: RemoveOverrideRequest) => postJson<RemoveOverrideResponse>("/api/overrides/remove", undefined, undefined, body),
   refreshHistory: (signal?: AbortSignal) => getJson<RefreshHistoryResponse>("/api/refresh/history", { limit: "5" }, signal),
 };

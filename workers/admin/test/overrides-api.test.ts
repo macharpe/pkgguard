@@ -12,7 +12,7 @@ const body = async (r: Response) => (await r.json()) as any;
 const post = async (payload: unknown, headers: Record<string, string> = JSON_CSRF, token: string | null | undefined = undefined, e = adminEnv()) =>
   call("/api/overrides", token === undefined ? await user() : token, { method: "POST", headers, body: typeof payload === "string" ? payload : JSON.stringify(payload) }, e);
 const del = async (payload: unknown, headers: Record<string, string> = JSON_CSRF, token: string | null | undefined = undefined, e = adminEnv()) =>
-  call("/api/overrides", token === undefined ? await user() : token, { method: "DELETE", headers, body: JSON.stringify(payload) }, e);
+  call("/api/overrides/remove", token === undefined ? await user() : token, { method: "POST", headers, body: JSON.stringify(payload) }, e);
 
 interface Posted { url: string; text: string }
 function chat(status = 200) {
@@ -144,7 +144,7 @@ function chunked(bytes: Uint8Array): ReadableStream<Uint8Array> {
   return new ReadableStream({ start(c) { c.enqueue(bytes.slice(0, 5000)); c.enqueue(bytes.slice(5000)); c.close(); } });
 }
 
-describe("DELETE /api/overrides", () => {
+describe("POST /api/overrides/remove", () => {
   it("removes an override: 200 with what was removed, and an audit record", async () => {
     await post({ ...base, versions: ["1.0.0"] });
     const r = await del(base);
@@ -175,8 +175,16 @@ describe("DELETE /api/overrides", () => {
 });
 
 describe("methods", () => {
-  it("allows only GET, POST and DELETE on /api/overrides", async () => {
-    for (const method of ["PUT", "PATCH"]) expect((await call("/api/overrides", await user(), { method, headers: JSON_CSRF })).status, method).toBe(405);
+  it("allows only GET and POST: the zone's managed WAF blocks every other method before it reaches the Worker", async () => {
+    for (const method of ["PUT", "PATCH", "DELETE"]) {
+      expect((await call("/api/overrides", await user(), { method, headers: JSON_CSRF })).status, method).toBe(405);
+      expect((await call("/api/overrides/remove", await user(), { method, headers: JSON_CSRF })).status, method).toBe(405);
+    }
+  });
+  it("answers GET on the removal path with 404: it only accepts a POST", async () => {
+    expect((await call("/api/overrides/remove", await user())).status).toBe(404);
+  });
+  it("has no other path under /api/overrides", async () => {
     expect((await call("/api/overrides/other", await user(), { method: "POST", headers: JSON_CSRF })).status).toBe(405);
   });
 });

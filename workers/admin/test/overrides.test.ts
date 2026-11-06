@@ -187,7 +187,7 @@ describe("putOverride / deleteOverride", () => {
 
 describe("the filter honours what the admin API writes", () => {
   const api = (method: "POST" | "DELETE", body: unknown, token?: Promise<string>) =>
-    (async () => call("/api/overrides", await (token ?? user()), { method, headers: { [CSRF_HEADER]: "1", "content-type": "application/json" }, body: JSON.stringify(body) }))();
+    (async () => call(method === "POST" ? "/api/overrides" : "/api/overrides/remove", await (token ?? user()), { method: "POST", headers: { [CSRF_HEADER]: "1", "content-type": "application/json" }, body: JSON.stringify(body) }))();
   const decideFor = (url: string) => {
     const pkg = parsePackageUrl(url);
     if (!pkg) throw new Error("not a package url");
