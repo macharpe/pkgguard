@@ -28,7 +28,7 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - `workers_dev` and `preview_urls` stay `false` on the filter Worker.
 - Deleting the filter Worker does **not** disable a live Forward policy; matching requests then return 500. Update or delete the policy first.
 - Gateway only classifies a package download if the registry host is TLS-decrypted. A Do Not Inspect rule covering the registry's app silently disables enforcement for that ecosystem.
-- Real account IDs, hostnames and secrets never enter a tracked file. Edit `wrangler.jsonc` (placeholders), never `wrangler.local.jsonc` (generated).
+- Real account IDs, hostnames and secrets never enter a tracked file. Edit `wrangler.jsonc` (placeholders), never `wrangler.local.jsonc` (generated). Every placeholder is distinct and format-valid; adding a new one means adding it to `scripts/lib/deploy-config.ts` and to the worker's expected counts there.
 
 ## Commands
 
@@ -41,8 +41,10 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm run bootstrap -- download` | Fetch the npm and PyPI OSV zips into `scripts/data/` (gitignored) |
 | `npm run bootstrap -- generate [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files |
 | `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
+| `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
+| `npm run deploy:filter` | Generate the config, then `wrangler deploy` |
 
-_TBD:_ `deploy` and `terraform -chdir=terraform plan` arrive with their milestones.
+_TBD:_ `terraform -chdir=terraform plan` arrives with its milestone.
 
 ## Layout
 
@@ -55,9 +57,9 @@ packages/core/            pure TS, no Workers APIs
   test/fixtures/            real OSV records, committed as-is
 ```
 
-`scripts/` holds the one-off bootstrap (`bootstrap.ts`, `lib/`). `migrations/0001_init.sql` is the D1 schema.
+`scripts/` holds the one-off bootstrap (`bootstrap.ts`) and the deploy-config generator (`generate-deploy-config.ts`); shared code is in `scripts/lib/`. `workers/<name>/wrangler.jsonc` is the committed template with placeholder IDs. `migrations/0001_init.sql` is the D1 schema.
 
-_TBD:_ `workers/filter`, `workers/admin`, `terraform`.
+_TBD:_ `workers/filter/src`, `workers/admin`, `terraform`.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 
