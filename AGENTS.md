@@ -2,7 +2,7 @@
 
 Guidance for a coding agent working in this repository. This file is published: it must never contain real account IDs, hostnames, emails or filesystem paths.
 
-> **Status: skeleton.** Sections marked _TBD_ are filled in as the milestones that own them land. Keep the invariants current.
+> **Status: in progress.** The filter Worker, Terraform, the Gateway rule script and the admin API and dashboard exist. The refresh Workflow, overrides and alerts are still to come. Keep the invariants current.
 
 ## Purpose
 
@@ -50,6 +50,8 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
+| `npm run build:admin` | Build the dashboard into `workers/admin/dist` (gitignored) |
+| `npm run deploy:admin` | Build the dashboard, generate the admin config, then `wrangler deploy`. Always builds first. |
 | `npm run gateway:rule -- status\|create\|enable\|disable\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
 | `terraform -chdir=terraform plan -out=tfplan` | Access apps, policies and service token. Never apply without a reviewed plan. |
 
@@ -78,7 +80,17 @@ workers/filter/           pkgguard-filter
 
 `terraform/` holds the Access side. The Gateway Forward rule is **not** in Terraform: provider 5.28.x has no `forward` action, so `scripts/gateway-rule.ts` manages it through the API.
 
-_TBD:_ `workers/admin`.
+```
+workers/admin/            pkgguard-admin
+  src/index.ts              handle(): authenticate, route, error-to-JSON. Default export is a thin wrapper.
+  src/access-jwt.ts         Access JWT verification (RS256 only, JWKS cache, fails closed)
+  src/api/                  status, detections, advisories, whoami
+  src/api-types.ts          the API contract: type-only, shared with the dashboard
+  ui/                       React + Vite + Kumo dashboard (own tsconfig, DOM types); builds to dist/
+  test/                     Workers-runtime tests; assets-real.test.ts needs `npm run build:admin` first
+```
+
+Admin invariants: the dashboard and `/api/*` are **separate Access applications with different audiences**, so each path accepts only its own token (`audienceFor`). A service-token JWT has `common_name` and no `email`. Every non-API GET is served from the `ASSETS` binding only after the JWT is verified, and the CSP is set by response content type, not by URL, because the page is requested as `/`. The CSP forbids inline script, so the theme bootstrap is the external `theme-init.js`. The UI must treat an opaque redirect (Access sending an expired session to login) as "session ended", and hide its panels rather than show an empty state.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 
