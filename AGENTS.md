@@ -50,6 +50,7 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
+| `wrangler d1 execute pkgguard-db --remote -c workers/filter/wrangler.local.jsonc --file migrations/<n>.sql` | Apply a migration. They are not applied automatically. Record `wrangler d1 time-travel info pkgguard-db` first. |
 | `npm run build:admin` | Build the dashboard into `workers/admin/dist` (gitignored) |
 | `npm run deploy:admin` | Build the dashboard, generate the admin config, then `wrangler deploy`. Always builds first. |
 | `npm run gateway:rule -- status\|create\|enable\|disable\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
@@ -84,13 +85,16 @@ workers/filter/           pkgguard-filter
 workers/admin/            pkgguard-admin
   src/index.ts              handle(): authenticate, route, error-to-JSON. Default export is a thin wrapper.
   src/access-jwt.ts         Access JWT verification (RS256 only, JWKS cache, fails closed)
-  src/api/                  status, detections, advisories, whoami
+  src/api/                  status, detections, advisories, whoami, refresh
+  src/refresh/              the refresh pipeline: iso, modified-csv, osv-fetch, apply, plan, batch, runs, launch, workflow
   src/api-types.ts          the API contract: type-only, shared with the dashboard
   ui/                       React + Vite + Kumo dashboard (own tsconfig, DOM types); builds to dist/
   test/                     Workers-runtime tests; assets-real.test.ts needs `npm run build:admin` first
 ```
 
 Admin invariants: the dashboard and `/api/*` are **one Access application with one audience**. Do not split them: a second application on the same hostname shares the `CF_Authorization` cookie name but has a different audience, so the browser session earned on the dashboard is rejected on `/api/*` and the dashboard's own `fetch()` calls bounce to login. A service-token JWT has `common_name` and no `email`, and Access cannot scope it by path inside one application, so the Worker refuses a service token everywhere except `/api/` (`authenticate`). Every non-API GET is served from the `ASSETS` binding only after the JWT is verified, and the CSP is set by response content type, not by URL, because the page is requested as `/`. The CSP forbids inline script, so the theme bootstrap is the external `theme-init.js`. The UI must treat an opaque redirect (Access sending an expired session to login) as "session ended", and hide its panels rather than show an empty state.
+
+Refresh invariants: the high-water mark (`sync_state.last_modified`) must never advance past a record that failed to fetch, so `advanceHighWater` stops just before the oldest failure. OSV timestamps mix precisions, so compare them with `normalizeIso`, never as strings. `applyRecords` deletes a record's old rows before inserting, and rebuilds KV for every touched package from D1 (D1 is the source of truth, KV is derived). `advisoryRow` in `core` is the only definition of how an advisory becomes a row; the bootstrap and the Workflow both use it. A step result is capped at 1 MiB, so the work list lives in `refresh_items`. Only one run is active at a time, enforced in a single `INSERT ... WHERE NOT EXISTS`. Every write endpoint requires the `x-pkgguard-csrf: 1` header, because the Access cookie is sent cross-site. A delta over 20,000 records is refused: that is a rebuild, which is the bootstrap's job.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 
