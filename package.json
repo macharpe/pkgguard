@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "deploy:config:filter": "tsx scripts/generate-deploy-config.ts filter",
-    "deploy:filter": "npm run deploy:config:filter && env -u CLOUDFLARE_API_TOKEN wrangler deploy -c workers/filter/wrangler.local.jsonc"
+    "deploy:filter": "npm run deploy:config:filter && env -u CLOUDFLARE_API_TOKEN wrangler deploy -c workers/filter/wrangler.local.jsonc",
+    "gateway:rule": "tsx scripts/gateway-rule.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

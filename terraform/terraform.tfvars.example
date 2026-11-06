@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# cloudflare_api_token and cloudflare_account_id come from the environment:
+#   TF_VAR_cloudflare_api_token, TF_VAR_cloudflare_account_id
+
+admin_hostname = "pkgguard.example.com"
+
+allowed_idp_ids = [
+  "00000000-0000-0000-0000-000000000001",
+  "00000000-0000-0000-0000-000000000002",
+]
+
+# Existing reusable policies, in evaluation order.
+human_access_policy_ids = [
+  "00000000-0000-0000-0000-000000000011",
+  "00000000-0000-0000-0000-000000000012",
+  "00000000-0000-0000-0000-000000000013",
+]

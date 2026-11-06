@@ -31,7 +31,9 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - The live OSV lookup runs only on an index miss, and an incomplete answer (pagination, malformed records) is never cached.
 - Resolve `context.identity()` before returning from `handle`. The context's RPC stubs are not guaranteed to outlive the call, so it cannot be deferred into `waitUntil`.
 - Call the global `fetch` through a wrapper, never as a stored property: workerd throws Illegal invocation otherwise.
-- Deleting the filter Worker does **not** disable a live Forward policy; matching requests then return 500. Update or delete the policy first.
+- Deleting the filter Worker does **not** disable a live Forward policy; matching requests then return 500. Update or delete the policy first (`npm run gateway:rule -- delete`).
+- The Forward rule is always scoped to `PKGGUARD_DEMO_EMAILS` and always created disabled. Its precedence must stay above the static `pkg.*` policies (46500).
+- The `/api/*` Access application must admit people as well as the service token, or the dashboard's own API calls are denied.
 - Gateway only classifies a package download if the registry host is TLS-decrypted. A Do Not Inspect rule covering the registry's app silently disables enforcement for that ecosystem.
 - Real account IDs, hostnames and secrets never enter a tracked file. Edit `wrangler.jsonc` (placeholders), never `wrangler.local.jsonc` (generated). Every placeholder is distinct and format-valid; adding a new one means adding it to `scripts/lib/deploy-config.ts` and to the worker's expected counts there.
 
@@ -48,8 +50,8 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
-
-_TBD:_ `terraform -chdir=terraform plan` arrives with its milestone.
+| `npm run gateway:rule -- status\|create\|enable\|disable\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
+| `terraform -chdir=terraform plan -out=tfplan` | Access apps, policies and service token. Never apply without a reviewed plan. |
 
 ## Layout
 
@@ -74,7 +76,9 @@ workers/filter/           pkgguard-filter
   test/                     Workers-runtime tests: real KV, real D1 with the migration applied
 ```
 
-_TBD:_ `workers/admin`, `terraform`.
+`terraform/` holds the Access side. The Gateway Forward rule is **not** in Terraform: provider 5.28.x has no `forward` action, so `scripts/gateway-rule.ts` manages it through the API.
+
+_TBD:_ `workers/admin`.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 
