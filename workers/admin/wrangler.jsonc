@@ -1,0 +1,22 @@
+// Committed template: placeholder IDs only. Real values live in .deploy.env;
+// `npm run deploy:config:admin` writes the gitignored wrangler.local.jsonc used for deploys.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "pkgguard-admin",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "account_id": "00000000000000000000000000000000",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "pkgguard.example.com", "custom_domain": true }],
+  "observability": { "enabled": true },
+  "kv_namespaces": [{ "binding": "PKG_INDEX", "id": "00000000000000000000000000000001" }],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "pkgguard-db", "database_id": "00000000-0000-0000-0000-000000000000" }
+  ],
+  "vars": {
+    "TEAM_DOMAIN": "your-team.cloudflareaccess.com",
+    "ACCESS_AUD_UI": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "ACCESS_AUD_API": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  }
+}

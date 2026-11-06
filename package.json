@@ -12,12 +12,14 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p scripts --noEmit && tsc -p workers/filter --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p scripts --noEmit && tsc -p workers/filter --noEmit && tsc -p workers/admin --noEmit",
     "test:coverage": "vitest run --coverage",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "deploy:config:filter": "tsx scripts/generate-deploy-config.ts filter",
     "deploy:filter": "npm run deploy:config:filter && env -u CLOUDFLARE_API_TOKEN wrangler deploy -c workers/filter/wrangler.local.jsonc",
-    "gateway:rule": "tsx scripts/gateway-rule.ts"
+    "gateway:rule": "tsx scripts/gateway-rule.ts",
+    "deploy:config:admin": "tsx scripts/generate-deploy-config.ts admin",
+    "deploy:admin": "npm run deploy:config:admin && env -u CLOUDFLARE_API_TOKEN wrangler deploy -c workers/admin/wrangler.local.jsonc"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
