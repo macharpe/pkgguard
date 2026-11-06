@@ -1,8 +1,13 @@
 import type {
+  AddOverrideRequest,
+  AddOverrideResponse,
   AdvisoriesResponse,
   DetectionsResponse,
+  OverridesResponse,
   RefreshHistoryResponse,
   RefreshRunInfo,
+  RemoveOverrideRequest,
+  RemoveOverrideResponse,
   StartRefreshResponse,
   StatusResponse,
   WhoamiResponse,
@@ -29,21 +34,35 @@ export class ApiError extends Error {
 
 export type FetchFn = (input: string, init: RequestInit) => Promise<Response>;
 
+type Method = "GET" | "POST" | "DELETE";
+
 async function request<T>(
-  method: "GET" | "POST",
+  method: Method,
   path: string,
   params: Record<string, string | undefined>,
   signal: AbortSignal | undefined,
   fetchFn: FetchFn,
+  json?: unknown,
 ): Promise<T> {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== "") query.set(key, value);
   const url = query.size > 0 ? `${path}?${query}` : path;
-  const headers: Record<string, string> = { accept: "application/json", ...(method === "POST" ? { [CSRF_HEADER]: "1" } : {}) };
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    ...(method !== "GET" ? { [CSRF_HEADER]: "1" } : {}),
+    ...(json !== undefined ? { "content-type": "application/json" } : {}),
+  };
 
   let response: Response;
   try {
-    response = await fetchFn(url, { method, headers, redirect: "manual", credentials: "same-origin", ...(signal ? { signal } : {}) });
+    response = await fetchFn(url, {
+      method,
+      headers,
+      redirect: "manual",
+      credentials: "same-origin",
+      ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
+      ...(signal ? { signal } : {}),
+    });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     throw new ApiError("network", "Could not reach the server");
@@ -73,7 +92,11 @@ async function request<T>(
 export const getJson = <T>(path: string, params: Record<string, string | undefined> = {}, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n)): Promise<T> =>
   request<T>("GET", path, params, signal, fetchFn);
 
-export const postJson = <T>(path: string, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n)): Promise<T> => request<T>("POST", path, {}, signal, fetchFn);
+export const postJson = <T>(path: string, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n), json?: unknown): Promise<T> =>
+  request<T>("POST", path, {}, signal, fetchFn, json);
+
+export const deleteJson = <T>(path: string, json: unknown, signal?: AbortSignal, fetchFn: FetchFn = (i, n) => fetch(i, n)): Promise<T> =>
+  request<T>("DELETE", path, {}, signal, fetchFn, json);
 
 export const api = {
   status: (signal?: AbortSignal) => getJson<StatusResponse>("/api/status", {}, signal),
@@ -84,5 +107,8 @@ export const api = {
     getJson<AdvisoriesResponse>("/api/advisories", params, signal),
   startRefresh: (signal?: AbortSignal) => postJson<StartRefreshResponse>("/api/refresh", signal),
   refreshRun: (id: string, signal?: AbortSignal) => getJson<RefreshRunInfo>(`/api/refresh/${encodeURIComponent(id)}`, {}, signal),
+  overrides: (signal?: AbortSignal) => getJson<OverridesResponse>("/api/overrides", {}, signal),
+  addOverride: (body: AddOverrideRequest) => postJson<AddOverrideResponse>("/api/overrides", undefined, undefined, body),
+  removeOverride: (body: RemoveOverrideRequest) => deleteJson<RemoveOverrideResponse>("/api/overrides", body),
   refreshHistory: (signal?: AbortSignal) => getJson<RefreshHistoryResponse>("/api/refresh/history", { limit: "5" }, signal),
 };

@@ -61,7 +61,7 @@ export const field = (name: FieldName): Field => FIELDS[name];
 /** Expected occurrences of each placeholder per worker template. A different count means template drift. */
 export const WORKERS: Record<string, Partial<Record<FieldName, number>>> = {
   filter: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1 },
-  admin: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1, ADMIN_HOSTNAME: 1, TEAM_DOMAIN: 1, ACCESS_AUD: 1 },
+  admin: { ACCOUNT_ID: 1, KV_ID: 1, D1_ID: 1, ADMIN_HOSTNAME: 2, TEAM_DOMAIN: 1, ACCESS_AUD: 1 },
 };
 
 const count = (haystack: string, needle: string): number => haystack.split(needle).length - 1;

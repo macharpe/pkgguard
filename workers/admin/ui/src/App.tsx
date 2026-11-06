@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api.js";
 import { DetectionsFeed } from "./components/DetectionsFeed.js";
 import { Header } from "./components/Header.js";
+import { OverridesPanel } from "./components/OverridesPanel.js";
 import { PackageLookup } from "./components/PackageLookup.js";
 import { RefreshPanel } from "./components/RefreshPanel.js";
 import { StatusCards } from "./components/StatusCards.js";
@@ -48,6 +49,7 @@ export default function App() {
             {status.data ? <StatusCards status={status.data} now={now} /> : null}
             <RefreshPanel now={now} onFinished={status.reload} />
             <PackageLookup />
+            <OverridesPanel now={now} />
             <DetectionsFeed now={now} />
           </>
         )}

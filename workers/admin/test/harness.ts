@@ -59,12 +59,19 @@ export const user = async (aud: string = AUD, email = "demo@example.com"): Promi
 export const serviceToken = async (aud: string = AUD, clientId = "tok123.access"): Promise<string> =>
   sign(key, { payload: goodPayload({ aud: [aud], email: undefined, common_name: clientId }) });
 
-export const deps = (): Deps => ({ now: () => new Date(NOW_MS), fetchJwks: fakeJwks(key).fetch });
+export const background: Promise<unknown>[] = [];
+export const deps = (): Deps => ({ now: () => new Date(NOW_MS), fetchJwks: fakeJwks(key).fetch, waitUntil: (work) => void background.push(work) });
+/** Waits for background work such as Chat notifications, so a test can assert on it. */
+export const flushBackground = async (): Promise<void> => {
+  await Promise.allSettled(background.splice(0));
+};
 
 export async function call(path: string, token: string | null, init: RequestInit = {}, e: Env = adminEnv()): Promise<Response> {
   const headers = new Headers(init.headers);
   if (token !== null) headers.set("cf-access-jwt-assertion", token);
-  return handle(new Request(`https://pkgguard.example.com${path}`, { ...init, headers }), e, deps());
+  const response = await handle(new Request(`https://pkgguard.example.com${path}`, { ...init, headers }), e, deps());
+  await flushBackground();
+  return response;
 }
 
 export const iso = (offsetSeconds = 0): string => new Date((NOW_S + offsetSeconds) * 1000).toISOString();

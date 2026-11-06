@@ -4,10 +4,12 @@ import type { Env } from "../env.js";
 import { BATCH_SIZE, processBatch, type BatchResult } from "./batch.js";
 import type { RefreshParams } from "./launch.js";
 import { DeltaTooLarge } from "./modified-csv.js";
+import { notifyRefresh } from "./notify.js";
 import { PlanError, advanceHighWater, planRun } from "./plan.js";
 import { syncProgress, updateRun } from "./runs.js";
 
 const PLAN_STEP = { retries: { limit: 3, delay: "10 seconds", backoff: "exponential" }, timeout: "3 minutes" } as const;
+const NOTIFY_STEP = { retries: { limit: 1, delay: "5 seconds" }, timeout: "30 seconds" } as const;
 const BATCH_STEP = { retries: { limit: 3, delay: "10 seconds", backoff: "exponential" }, timeout: "5 minutes" } as const;
 /** Failed runs keep their work list for this long, for diagnosis. */
 const KEEP_ITEMS_MS = 7 * 24 * 3600_000;
@@ -31,7 +33,7 @@ function rethrow(err: unknown): never {
 }
 
 /** Orchestration only: every step delegates to a function tested on its own. Kept out of the class so it can be driven directly. */
-export async function executeRefresh(env: Pick<Env, "DB" | "PKG_INDEX">, runId: string, step: Pick<WorkflowStep, "do">): Promise<RunSummary> {
+export async function executeRefresh(env: Pick<Env, "DB" | "PKG_INDEX" | "GCHAT_WEBHOOK" | "PUBLIC_URL">, runId: string, step: Pick<WorkflowStep, "do">): Promise<RunSummary> {
   const { DB: db, PKG_INDEX: kv } = env;
 
   try {
@@ -57,7 +59,7 @@ export async function executeRefresh(env: Pick<Env, "DB" | "PKG_INDEX">, runId: 
       totals.withdrawn += result.withdrawn;
     }
 
-    return await step.do("finalize", async () => {
+    const summary = await step.do("finalize", async () => {
       const now = new Date();
       const { failed } = await advanceHighWater(db, runId, now.toISOString());
       await syncProgress(db, runId, "complete");
@@ -77,9 +79,13 @@ export async function executeRefresh(env: Pick<Env, "DB" | "PKG_INDEX">, runId: 
         .run();
       return { total: plan.total, ...totals, failed };
     });
+    await step.do("notify", NOTIFY_STEP, () => notifyRefresh(env, runId));
+    return summary;
   } catch (err) {
     const detail = (err instanceof Error ? err.message : String(err)).slice(0, DETAIL_MAX);
     await step.do("record failure", () => updateRun(db, runId, { status: "failed", phase: "failed", error_detail: detail, finished_at: new Date().toISOString() }));
+    // The original error is what matters; a problem telling Chat about it must not replace it.
+    await step.do("notify failure", NOTIFY_STEP, () => notifyRefresh(env, runId)).catch(() => undefined);
     throw err;
   }
 }

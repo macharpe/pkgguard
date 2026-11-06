@@ -97,3 +97,43 @@ export interface WhoamiResponse {
   actor: ActorInfo;
   label: string;
 }
+
+export type OverrideMode = "block" | "allow";
+
+export interface OverrideItem {
+  ecosystem: Ecosystem;
+  package_name: string;
+  mode: OverrideMode;
+  /** Null covers every version. */
+  versions: string[] | null;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface OverridesResponse {
+  items: OverrideItem[];
+}
+
+export interface AddOverrideRequest {
+  ecosystem: Ecosystem;
+  name: string;
+  mode: OverrideMode;
+  versions?: string[];
+  note?: string;
+}
+
+export interface AddOverrideResponse {
+  created: boolean;
+  item: OverrideItem;
+}
+
+export interface RemoveOverrideRequest {
+  ecosystem: Ecosystem;
+  name: string;
+  mode: OverrideMode;
+}
+
+export interface RemoveOverrideResponse {
+  removed: OverrideItem;
+}

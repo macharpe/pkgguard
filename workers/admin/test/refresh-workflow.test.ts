@@ -56,7 +56,7 @@ const seedState = (npm = "2026-11-05T00:00:00Z") =>
     env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 1, '2026-11-01T00:00:00Z'), ('pypi', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z')").bind(npm),
   ]);
 const startRow = () => env.DB.prepare("INSERT INTO refresh_runs (id, kind, trigger, status, started_at) VALUES (?, 'manual', 'test', 'queued', '2026-11-07T00:00:00Z')").bind(RUN).run();
-const drive = async (e: Pick<typeof env, "DB" | "PKG_INDEX"> = env) => {
+const drive = async (e: Parameters<typeof executeRefresh>[0] = env) => {
   const { step, calls } = fakeStep();
   const outcome = await executeRefresh(e, RUN, step).then((v) => ({ ok: true as const, v }), (err: unknown) => ({ ok: false as const, e: err }));
   return { outcome, calls };
@@ -80,7 +80,7 @@ describe("RefreshWorkflow", () => {
     const { outcome, calls } = await drive();
 
     expect(outcome).toMatchObject({ ok: true, v: { total: 250, added: 250, updated: 0, failed: 0 } });
-    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "records 0-99", "records 100-199", "records 200-249", "finalize"]);
+    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "records 0-99", "records 100-199", "records 200-249", "finalize", "notify"]);
 
     expect(await getRun(env.DB, RUN)).toMatchObject({ status: "complete", phase: "complete", items_total: 250, items_done: 250, added: 250, errors: 0, error_detail: null });
     expect((await getRun(env.DB, RUN))?.finished_at).not.toBeNull();
@@ -137,7 +137,7 @@ describe("RefreshWorkflow", () => {
     stubFetch(csv("npm", [], stamp), csv("PyPI", []));
     const { outcome, calls } = await drive();
     expect(outcome).toMatchObject({ ok: true, v: { total: 0, added: 0, failed: 0 } });
-    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "finalize"]);
+    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "finalize", "notify"]);
     expect(await getRun(env.DB, RUN)).toMatchObject({ status: "complete", items_total: 0 });
     expect((await state("npm"))?.last_synced_at).not.toBe("2026-11-01T00:00:00Z");
   });
@@ -160,7 +160,7 @@ describe("RefreshWorkflow", () => {
     const { outcome, calls } = await drive();
     expect(outcome.ok).toBe(false);
     expect((outcome as { e: unknown }).e).toBeInstanceOf(NonRetryableError);
-    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "record failure"]);
+    expect(calls.map((c) => c.name)).toEqual(["start", "plan", "record failure", "notify failure"]);
     expect(await getRun(env.DB, RUN)).toMatchObject({ status: "failed", phase: "failed" });
     expect((await getRun(env.DB, RUN))?.error_detail).toMatch(/run the bootstrap first/);
   });

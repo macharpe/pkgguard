@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDuration, isActive, kindLabel, osvUrl, plural, runDuration, runSummary, triggerLabel, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
+import { formatCount, formatDuration, isActive, kindLabel, osvUrl, parseVersionsInput, plural, runDuration, runSummary, triggerLabel, versionsLabel, packageLabel, relativeTime, simulationLabel, splitIds, verdictBadge } from "../src/format.js";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString();
@@ -136,5 +136,24 @@ describe("runSummary", () => {
   });
   it("says in progress for an unfinished run", () => {
     expect(runSummary({ ...base, status: "running" as never })).toBe("In progress");
+  });
+});
+
+describe("parseVersionsInput", () => {
+  it("splits on commas and whitespace, de-duplicates, and keeps order", () => {
+    expect(parseVersionsInput("1.0.0, 1.0.1  2.0.0,\n1.0.0")).toEqual(["1.0.0", "1.0.1", "2.0.0"]);
+  });
+  it("means every version when blank", () => {
+    expect(parseVersionsInput("")).toBeUndefined();
+    expect(parseVersionsInput("  , ,\n")).toBeUndefined();
+  });
+});
+
+describe("versionsLabel", () => {
+  it("says all versions for null, lists a few, and counts the rest", () => {
+    expect(versionsLabel(null)).toBe("All versions");
+    expect(versionsLabel(["1.0.0"])).toBe("1.0.0");
+    expect(versionsLabel(["1", "2", "3"])).toBe("1, 2, 3");
+    expect(versionsLabel(["1", "2", "3", "4", "5"])).toBe("1, 2, 3 +2 more");
   });
 });

@@ -90,3 +90,15 @@ export function runSummary(run: Pick<RefreshRun, "status" | "added" | "updated" 
   if (run.errors > 0) parts.push(`${formatCount(run.errors)} to retry`);
   return parts.join(" · ");
 }
+
+/** Splits "1.0.0, 1.0.1  2.0.0" into versions; blank means every version. */
+export function parseVersionsInput(text: string): string[] | undefined {
+  const versions = [...new Set(text.split(/[\s,]+/).filter(Boolean))];
+  return versions.length === 0 ? undefined : versions;
+}
+
+export function versionsLabel(versions: string[] | null): string {
+  if (versions === null) return "All versions";
+  const shown = versions.slice(0, 3).join(", ");
+  return versions.length > 3 ? `${shown} +${versions.length - 3} more` : shown;
+}

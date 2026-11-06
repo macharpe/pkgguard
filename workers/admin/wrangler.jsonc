@@ -22,6 +22,7 @@
   ],
   "vars": {
     "TEAM_DOMAIN": "your-team.cloudflareaccess.com",
+    "PUBLIC_URL": "https://pkgguard.example.com",
     "ACCESS_AUD": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   }
 }

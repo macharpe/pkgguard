@@ -1,5 +1,6 @@
 import { AccessError, readAssertion, verifyAccessJwt, type Actor } from "./access-jwt.js";
 import { advisories } from "./api/advisories.js";
+import { overridesAdd, overridesList, overridesRemove } from "./api/overrides.js";
 import { detections } from "./api/detections.js";
 import { refreshHistory, refreshStatus, startRefresh } from "./api/refresh.js";
 import { status } from "./api/status.js";
@@ -18,6 +19,8 @@ const CSP =
 
 export interface Deps {
   now: () => Date;
+  /** Runs background work after the response, such as a Chat notification. */
+  waitUntil: (work: Promise<unknown>) => void;
   fetchJwks?: (url: string) => Promise<Response>;
 }
 
@@ -60,6 +63,11 @@ export async function route(request: Request, env: Env, deps: Deps): Promise<Res
     requireCsrfHeader(request);
     return startRefresh(env, actor, deps.now());
   }
+  if (url.pathname === "/api/overrides" && (request.method === "POST" || request.method === "DELETE")) {
+    requireCsrfHeader(request);
+    const context = { env, actor, now: deps.now(), waitUntil: deps.waitUntil };
+    return request.method === "POST" ? overridesAdd(request, context) : overridesRemove(request, context);
+  }
   if (request.method !== "GET" && request.method !== "HEAD") throw new HttpError(405, "method not allowed");
 
   switch (url.pathname) {
@@ -71,6 +79,8 @@ export async function route(request: Request, env: Env, deps: Deps): Promise<Res
       return detections(env, url);
     case "/api/advisories":
       return advisories(env, url);
+    case "/api/overrides":
+      return overridesList(env);
     case "/api/refresh/history":
       return refreshHistory(env, url);
     default:
@@ -124,7 +134,8 @@ export async function runScheduled(controller: Pick<ScheduledController, "cron" 
 }
 
 export default {
-  fetch: (request: Request, env: Env): Promise<Response> => handle(request, env, { now: () => new Date() }),
+  fetch: (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> =>
+    handle(request, env, { now: () => new Date(), waitUntil: (work) => ctx.waitUntil(work) }),
   scheduled: (controller: ScheduledController, env: Env, ctx: ExecutionContext): void => {
     ctx.waitUntil(runScheduled(controller, env));
   },

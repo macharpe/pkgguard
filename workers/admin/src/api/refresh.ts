@@ -1,4 +1,5 @@
 import { actorLabel, type Actor } from "../access-jwt.js";
+import { audit } from "../audit.js";
 import type { RefreshHistoryResponse, RefreshRunInfo, StartRefreshResponse } from "../api-types.js";
 import type { Env } from "../env.js";
 import { HttpError, intParam, json } from "../http.js";
@@ -11,7 +12,7 @@ export async function startRefresh(env: Env, actor: Actor, now: Date): Promise<R
   const trigger = actorLabel(actor);
   const result = await launchRefresh(env, { kind: "manual", trigger }, now);
   if (!result.started) return json({ error: "a refresh is already running", runId: result.activeId }, 409);
-  await env.DB.prepare("INSERT INTO audit_log (ts, actor, action, detail) VALUES (?, ?, 'refresh.start', ?)").bind(now.toISOString(), trigger, result.runId).run();
+  await audit(env.DB, now, trigger, "refresh.start", result.runId);
   const body: StartRefreshResponse = { runId: result.runId };
   return json(body, 202);
 }

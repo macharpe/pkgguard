@@ -16,6 +16,7 @@ const GOOD = {
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const filterTemplate = (): string => readFileSync(join(REPO_ROOT, "workers/filter/wrangler.jsonc"), "utf8");
+const adminTemplate = (): string => readFileSync(join(REPO_ROOT, "workers/admin/wrangler.jsonc"), "utf8");
 
 describe("placeholders", () => {
   it("every placeholder is distinct, so substitution can never cross-contaminate", () => {
@@ -157,5 +158,30 @@ describe("generate (filesystem)", () => {
   });
   it("rejects an unknown worker", () => {
     expect(() => generate("nope", root)).toThrow(/Unknown worker/);
+  });
+});
+
+describe("the committed admin template", () => {
+  it("renders cleanly with every placeholder replaced", () => {
+    const out = renderConfig(adminTemplate(), WORKERS["admin"]!, GOOD);
+    for (const name of FIELD_NAMES) expect(out, name).not.toContain(field(name).placeholder);
+    expect(out).toContain(GOOD.ADMIN_HOSTNAME);
+    expect(out).toContain(GOOD.ACCESS_AUD);
+  });
+  it("puts the hostname in both the route and the public URL used in alerts", () => {
+    const out = renderConfig(adminTemplate(), WORKERS["admin"]!, GOOD);
+    expect(out).toContain(`"pattern": "${GOOD.ADMIN_HOSTNAME}"`);
+    expect(out).toContain(`"PUBLIC_URL": "https://${GOOD.ADMIN_HOSTNAME}"`);
+  });
+  it("never ships workers.dev or preview URLs", () => {
+    expect(adminTemplate()).toMatch(/"workers_dev":\s*false/);
+    expect(adminTemplate()).toMatch(/"preview_urls":\s*false/);
+  });
+  it("detects drift in the hostname count", () => {
+    expect(() => renderConfig(`${adminTemplate()}"${field("ADMIN_HOSTNAME").placeholder}"`, WORKERS["admin"]!, GOOD)).toThrow(/Template drift/);
+  });
+  it("does not declare the webhook: a secret must never sit in a committed config", () => {
+    expect(adminTemplate()).not.toMatch(/GCHAT|webhook|chat\.googleapis/i);
+    expect(filterTemplate()).not.toMatch(/GCHAT|webhook|chat\.googleapis/i);
   });
 });
