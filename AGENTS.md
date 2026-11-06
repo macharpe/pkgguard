@@ -37,9 +37,12 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm install` | Install the workspace |
 | `npm test` | Full test suite — never filter |
 | `npm run test:coverage` | Same, with v8 coverage |
-| `npm run typecheck` | `tsc --noEmit` over `packages/core` |
+| `npm run typecheck` | `tsc --noEmit` over `packages/core` and `scripts` |
+| `npm run bootstrap -- download` | Fetch the npm and PyPI OSV zips into `scripts/data/` (gitignored) |
+| `npm run bootstrap -- generate [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files |
+| `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 
-_TBD:_ `bootstrap`, `deploy`, `terraform -chdir=terraform plan` arrive with their milestones.
+_TBD:_ `deploy` and `terraform -chdir=terraform plan` arrive with their milestones.
 
 ## Layout
 
@@ -52,7 +55,9 @@ packages/core/            pure TS, no Workers APIs
   test/fixtures/            real OSV records, committed as-is
 ```
 
-_TBD:_ `workers/filter`, `workers/admin`, `scripts`, `terraform`, `migrations`.
+`scripts/` holds the one-off bootstrap (`bootstrap.ts`, `lib/`). `migrations/0001_init.sql` is the D1 schema.
+
+_TBD:_ `workers/filter`, `workers/admin`, `terraform`.
 
 Two non-obvious rules in `core`: an **unparseable version never matches** (it is not "equal" and not "affected"), and **one OSV record yields one advisory row per affected package** — event-stream and flatmap-stream share a record.
 

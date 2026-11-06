@@ -11,13 +11,17 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit",
-    "test:coverage": "vitest run --coverage"
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p scripts --noEmit",
+    "test:coverage": "vitest run --coverage",
+    "bootstrap": "tsx scripts/bootstrap.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/yauzl": "^3.4.0",
     "@vitest/coverage-v8": "^5.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "yauzl": "^3.4.0"
   }
 }
