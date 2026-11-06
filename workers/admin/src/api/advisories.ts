@@ -1,4 +1,5 @@
 import { evaluate, kvKey, normalizeName, parseKvValue, isNegative, summarizeVerdict, type Ecosystem } from "@pkgguard/core";
+import type { AdvisoriesResponse, AdvisoryRow, PackageResult } from "../api-types.js";
 import type { Env } from "../env.js";
 import { HttpError, enumParam, json } from "../http.js";
 
@@ -6,14 +7,7 @@ const ECOSYSTEMS = ["npm", "pypi"] as const satisfies readonly Ecosystem[];
 const MAX_PACKAGES = 25;
 const MAX_ROWS = 200;
 
-interface Row {
-  ecosystem: string;
-  package_name: string;
-  osv_id: string;
-  kind: string;
-  severity: string | null;
-  summary: string | null;
-}
+type Row = AdvisoryRow;
 
 /**
  * Package search by name prefix. With `version`, an exact package also gets the verdict the filter's OSV
@@ -27,7 +21,7 @@ export async function advisories(env: Env, url: URL): Promise<Response> {
   const version = (url.searchParams.get("version") ?? "").trim();
   if (version.length > 128) throw new HttpError(400, "version is too long");
 
-  const packages = new Map<string, { ecosystem: string; name: string; malware: Row[]; vulnerabilities: Row[] }>();
+  const packages = new Map<string, PackageResult>();
   for (const ecosystem of only ? [only] : ECOSYSTEMS) {
     const prefix = normalizeName(ecosystem, q);
     const { results } = await env.DB.prepare(
@@ -39,7 +33,7 @@ export async function advisories(env: Env, url: URL): Promise<Response> {
     for (const row of results) {
       const key = `${row.ecosystem}:${row.package_name}`;
       if (!packages.has(key) && packages.size >= MAX_PACKAGES) continue;
-      const entry = packages.get(key) ?? { ecosystem: row.ecosystem, name: row.package_name, malware: [], vulnerabilities: [] };
+      const entry: PackageResult = packages.get(key) ?? { ecosystem: row.ecosystem, name: row.package_name, malware: [], vulnerabilities: [] };
       (row.kind === "malware" ? entry.malware : entry.vulnerabilities).push(row);
       packages.set(key, entry);
     }
@@ -62,5 +56,6 @@ export async function advisories(env: Env, url: URL): Promise<Response> {
       return { ...pkg, osv: { version, outcome: summary.outcome, reason: summary.reason, osvIds: summary.osvIds } };
     }),
   );
-  return json({ items, truncated: packages.size >= MAX_PACKAGES });
+  const body: AdvisoriesResponse = { items, truncated: packages.size >= MAX_PACKAGES };
+  return json(body);
 }

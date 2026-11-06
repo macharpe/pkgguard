@@ -1,3 +1,4 @@
+import type { DetectionRow, DetectionsResponse } from "../api-types.js";
 import type { Env } from "../env.js";
 import { enumParam, intParam, json } from "../http.js";
 
@@ -24,9 +25,10 @@ export async function detections(env: Env, url: URL): Promise<Response> {
     " ORDER BY id DESC LIMIT ?";
   const { results } = await env.DB.prepare(sql)
     .bind(...binds, limit + 1)
-    .all<{ id: number }>();
+    .all<DetectionRow>();
 
   const more = results.length > limit;
   const items = more ? results.slice(0, limit) : results;
-  return json({ items, nextBefore: more ? (items[items.length - 1]?.id ?? null) : null });
+  const body: DetectionsResponse = { items, nextBefore: more ? (items[items.length - 1]?.id ?? null) : null };
+  return json(body);
 }

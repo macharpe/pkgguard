@@ -1,6 +1,10 @@
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
+
+// The assets binding needs its directory to exist; tests inject a fake ASSETS, so it can be empty.
+mkdirSync(path.resolve(import.meta.dirname, "dist"), { recursive: true });
 
 export default defineConfig({
   plugins: [
@@ -14,7 +18,7 @@ export default defineConfig({
   ],
   test: {
     name: "admin",
-    include: ["test/**/*.test.ts"],
+    include: ["test/**/*.test.ts", "ui/test/**/*.test.ts"],
     setupFiles: ["./test/apply-migrations.ts"],
   },
 });

@@ -4,7 +4,22 @@ import type { Env } from "../src/env.js";
 import { resetStatusCache } from "../src/api/status.js";
 import { AUD_API, AUD_UI, NOW_MS, NOW_S, TEAM, fakeJwks, goodPayload, makeKey, reset, sign, type TestKey } from "./jwt-helpers.js";
 
-export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, TEAM_DOMAIN: TEAM, ACCESS_AUD_UI: AUD_UI, ACCESS_AUD_API: AUD_API, ...over });
+export const FILES: Record<string, { type: string; body: string }> = {
+  "/index.html": { type: "text/html; charset=utf-8", body: "<!doctype html><title>PkgGuard</title><div id=root></div>" },
+  "/assets/app-abc123.js": { type: "text/javascript", body: "console.log(1)" },
+  "/theme-init.js": { type: "text/javascript", body: "/* theme */" },
+};
+// Like the real binding, `/` is index.html.
+FILES["/"] = FILES["/index.html"] as { type: string; body: string };
+
+export const fakeAssets = {
+  fetch: async (request: Request): Promise<Response> => {
+    const file = FILES[new URL(request.url).pathname];
+    return file ? new Response(request.method === "HEAD" ? null : file.body, { headers: { "content-type": file.type } }) : new Response("nope", { status: 404 });
+  },
+} as unknown as Fetcher;
+
+export const adminEnv = (over: Partial<Env> = {}): Env => ({ ...env, ASSETS: fakeAssets, TEAM_DOMAIN: TEAM, ACCESS_AUD_UI: AUD_UI, ACCESS_AUD_API: AUD_API, ...over });
 
 let key: TestKey;
 export async function setup(): Promise<void> {

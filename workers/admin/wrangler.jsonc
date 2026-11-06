@@ -10,6 +10,7 @@
   "preview_urls": false,
   "routes": [{ "pattern": "pkgguard.example.com", "custom_domain": true }],
   "observability": { "enabled": true },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
   "kv_namespaces": [{ "binding": "PKG_INDEX", "id": "00000000000000000000000000000001" }],
   "d1_databases": [
     { "binding": "DB", "database_name": "pkgguard-db", "database_id": "00000000-0000-0000-0000-000000000000" }

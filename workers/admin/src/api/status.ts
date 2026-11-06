@@ -1,3 +1,4 @@
+import type { StatusResponse } from "../api-types.js";
 import type { Env } from "../env.js";
 import { json } from "../http.js";
 
@@ -36,11 +37,12 @@ export async function status(env: Env, now: Date = new Date()): Promise<Response
   const byVerdict: Record<string, number> = { blocked: 0, flagged: 0, allowed: 0, error: 0 };
   for (const row of last24h.results) byVerdict[row.verdict] = row.n;
 
-  return json({
+  const body: StatusResponse = {
     generatedAt: now.toISOString(),
-    ecosystems: sync.results,
+    ecosystems: sync.results as StatusResponse["ecosystems"],
     advisories,
-    detections: { last24h: byVerdict, total: total?.n ?? 0 },
-    lastRefresh: lastRefresh ?? null,
-  });
+    detections: { last24h: byVerdict as StatusResponse["detections"]["last24h"], total: total?.n ?? 0 },
+    lastRefresh: (lastRefresh as StatusResponse["lastRefresh"]) ?? null,
+  };
+  return json(body);
 }

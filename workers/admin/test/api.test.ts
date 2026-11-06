@@ -48,12 +48,53 @@ describe("authentication", () => {
   });
 });
 
-describe("the dashboard page", () => {
-  it("is HTML with hardening headers", async () => {
+describe("serving the dashboard", () => {
+  it("serves index.html at / with a strict CSP and no caching", async () => {
     const r = await call("/", await user(AUD_UI));
+    expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toMatch(/text\/html/);
-    expect(r.headers.get("x-content-type-options")).toBe("nosniff");
     expect(r.headers.get("cache-control")).toBe("no-store");
+    expect(r.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(r.headers.get("x-frame-options")).toBe("DENY");
+    const csp = r.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(await r.text()).toContain("PkgGuard");
+  });
+  it("caches hashed bundles privately and immutably, but never the HTML", async () => {
+    const r = await call("/assets/app-abc123.js", await user(AUD_UI));
+    expect(r.status).toBe(200);
+    expect(r.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect(r.headers.get("content-security-policy")).toBeNull();
+  });
+  it("does not cache unhashed scripts", async () => {
+    expect((await call("/theme-init.js", await user(AUD_UI))).headers.get("cache-control")).toBe("no-store");
+  });
+  it("verifies the token before serving any asset", async () => {
+    expect((await call("/assets/app-abc123.js", null)).status).toBe(401);
+    expect((await call("/assets/app-abc123.js", await user(AUD_API))).status).toBe(403);
+    expect((await call("/index.html", "garbage")).status).toBe(403);
+  });
+  it("404s a missing asset with the JSON error and never falls back to index.html", async () => {
+    for (const path of ["/assets/missing.js", "/some/route"]) {
+      const r = await call(path, await user(AUD_UI));
+      expect(r.status).toBe(404);
+      expect(await r.json()).toEqual({ error: "not found" });
+    }
+  });
+  it("cannot be steered out of the asset directory", async () => {
+    for (const p of ["/../etc/passwd", "/%2e%2e/secret", "/assets/../../x"]) expect([403, 404], p).toContain((await call(p, await user(AUD_UI))).status);
+  });
+  it("never serves assets for /api paths", async () => {
+    expect((await call("/api/index.html", await user(AUD_API))).status).toBe(404);
+  });
+  it("answers HEAD for an asset", async () => {
+    expect((await call("/", await user(AUD_UI), { method: "HEAD" })).status).toBe(200);
+  });
+  it("refuses POST to an asset path", async () => {
+    expect((await call("/", await user(AUD_UI), { method: "POST" })).status).toBe(405);
   });
 });
 
