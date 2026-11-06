@@ -51,7 +51,7 @@ variable "session_duration" {
 }
 
 variable "service_token_duration" {
-  description = "Lifetime of the API service token. Rotate before it expires."
+  description = "Lifetime of the API service token. Must match the live token, or the next apply shortens it. Rotate before it expires."
   type        = string
-  default     = "8760h"
+  default     = "43800h" # 5 years
 }
