@@ -117,6 +117,16 @@ describe("malwareMessage", () => {
   it("is honest that it was only observed when enforcement is off", () => {
     expect(malwareMessage({ ...base, blocked: false }).text).toContain("observed, not blocked");
   });
+  it("includes the reference when there is one, and omits it otherwise", () => {
+    expect(malwareMessage({ ...base, reference: "PG-7Q2K4M" }).text).toContain("Reference: `PG-7Q2K4M`");
+    expect(malwareMessage(base).text).not.toContain("Reference:");
+    expect(malwareMessage({ ...base, reference: null }).text).not.toContain("Reference:");
+  });
+  it("only prints a reference that has the real shape, so nothing else can be smuggled in", () => {
+    for (const bad of ["PG-7Q2K4M`*bold*", "<https://evil.example|x>", "free text", "pg-7q2k4m"]) {
+      expect(malwareMessage({ ...base, reference: bad }).text, bad).not.toContain("Reference:");
+    }
+  });
   it("labels PyPI and an override-sourced block differently", () => {
     const t = malwareMessage({ ...base, ecosystem: "pypi", reason: "override", osvIds: [] }).text;
     expect(t).toContain("(PyPI)");

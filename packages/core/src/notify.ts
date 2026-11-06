@@ -5,6 +5,8 @@
  * which carries its own key and token.
  */
 
+import { isReference } from "./reference.js";
+
 export interface ChatMessage {
   text: string;
 }
@@ -84,6 +86,8 @@ export interface MalwareAlert {
   blocked: boolean;
   reason: "osv-malware" | "override";
   osvIds: string[];
+  /** Ties this alert to the page the developer saw and to the detection row. */
+  reference?: string | null;
 }
 
 export function malwareMessage(a: MalwareAlert): ChatMessage {
@@ -94,6 +98,7 @@ export function malwareMessage(a: MalwareAlert): ChatMessage {
     `${code(pkg)} (${a.ecosystem === "pypi" ? "PyPI" : "npm"}) — ${outcome}`,
     `User: ${code(safeToken(a.user ?? "unknown", 120))}`,
   ];
+  if (isReference(a.reference)) lines.push(`Reference: ${code(a.reference)}`);
   if (a.osvIds.length > 0) {
     const shown = a.osvIds.slice(0, 5).map(osvLink).join(", ");
     lines.push(`Advisories: ${shown}${a.osvIds.length > 5 ? ` and ${a.osvIds.length - 5} more` : ""}`);
