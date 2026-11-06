@@ -149,5 +149,31 @@ export function overrideMessage(a: OverrideAlert): ChatMessage {
 
 export const MALWARE_ALERT_TTL_SECONDS = 3600;
 
-/** KV key used to send at most one malware alert per package per hour, so a repeated download cannot flood the space. */
-export const malwareAlertKey = (ecosystem: string, name: string): string => `alert:malware:${ecosystem}:${name.toLowerCase()}`.slice(0, 512);
+const NAME_BUDGET_BYTES = 220;
+const USER_BUDGET_BYTES = 250;
+/** Downloads with no identified user share one bucket, so unattributable traffic is still rate-limited. */
+const ANONYMOUS = "~anonymous";
+
+/** Cuts on a code point boundary so the result is valid text and no longer than `max` UTF-8 bytes. */
+function clipBytes(value: string, max: number): string {
+  const encoder = new TextEncoder();
+  let out = "";
+  let used = 0;
+  for (const ch of value) {
+    const size = encoder.encode(ch).length;
+    if (used + size > max) break;
+    out += ch;
+    used += size;
+  }
+  return out;
+}
+
+/**
+ * KV key used to send at most one malware alert per package per user per hour, so a repeated download cannot
+ * flood the space while every affected person is still reported. KV limits keys to 512 bytes, not characters:
+ * the two budgets plus the fixed prefix (at most 19 bytes) and separator come to 490, so the key always fits.
+ */
+export const malwareAlertKey = (ecosystem: string, name: string, user: string | null | undefined): string => {
+  const who = user === null || user === undefined || user.trim() === "" ? ANONYMOUS : clipBytes(user.trim().toLowerCase(), USER_BUDGET_BYTES);
+  return `alert:malware:${ecosystem}:${clipBytes(name.toLowerCase(), NAME_BUDGET_BYTES)}:${who}`;
+};

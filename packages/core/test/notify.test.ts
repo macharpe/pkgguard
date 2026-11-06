@@ -196,9 +196,44 @@ describe("overrideMessage", () => {
 });
 
 describe("malwareAlertKey", () => {
-  it("is per ecosystem and lowercased name, and bounded to a KV key", () => {
-    expect(malwareAlertKey("npm", "Left-Pad")).toBe("alert:malware:npm:left-pad");
-    expect(malwareAlertKey("pypi", "left-pad")).not.toBe(malwareAlertKey("npm", "left-pad"));
-    expect(malwareAlertKey("npm", "x".repeat(900)).length).toBeLessThanOrEqual(512);
+  const bytes = (k: string) => new TextEncoder().encode(k).length;
+  it("is per ecosystem, lowercased name and lowercased user", () => {
+    expect(malwareAlertKey("npm", "Left-Pad", "Dev@Example.com")).toBe("alert:malware:npm:left-pad:dev@example.com");
+    expect(malwareAlertKey("pypi", "left-pad", "a@b.c")).not.toBe(malwareAlertKey("npm", "left-pad", "a@b.c"));
+  });
+  it("differs per user, so each affected person gets an alert", () => {
+    expect(malwareAlertKey("npm", "x", "a@example.com")).not.toBe(malwareAlertKey("npm", "x", "b@example.com"));
+  });
+  it("treats the same person in another case as the same user", () => {
+    expect(malwareAlertKey("npm", "x", "A@Example.com")).toBe(malwareAlertKey("npm", "x", "a@example.com"));
+  });
+  it("puts every unidentified download in one shared bucket, distinct from any real user", () => {
+    const anon = malwareAlertKey("npm", "x", null);
+    expect(malwareAlertKey("npm", "x", undefined)).toBe(anon);
+    expect(malwareAlertKey("npm", "x", "")).toBe(anon);
+    expect(malwareAlertKey("npm", "x", "   ")).toBe(anon);
+    expect(anon).not.toBe(malwareAlertKey("npm", "x", "anonymous"));
+    expect(anon).not.toBe(malwareAlertKey("npm", "y", null));
+  });
+  it("stays within KV's 512 bytes even with a maximal name and a long multi-byte user", () => {
+    for (const user of ["u".repeat(400), "é".repeat(300), "日".repeat(300), "😀".repeat(300)]) {
+      for (const name of ["x".repeat(900), "日".repeat(400)]) expect(bytes(malwareAlertKey("pypi", name, user)), `${name[0]}/${user[0]}`).toBeLessThanOrEqual(512);
+    }
+  });
+  it("ignores surrounding whitespace in the user", () => {
+    expect(malwareAlertKey("npm", "x", "  a@example.com\t")).toBe(malwareAlertKey("npm", "x", "a@example.com"));
+  });
+  it("keeps different users distinct even when the package name is as long as it can be", () => {
+    const name = "x".repeat(214);
+    expect(malwareAlertKey("pypi", name, "alice@example.com")).not.toBe(malwareAlertKey("pypi", name, "bob@example.com"));
+  });
+  it("never cuts a character in half", () => {
+    const key = malwareAlertKey("npm", "x", "😀".repeat(300));
+    expect(key).not.toContain("\uFFFD");
+    expect(new TextDecoder("utf-8", { fatal: true }).decode(new TextEncoder().encode(key))).toBe(key);
+  });
+  it("keeps a realistic name and email intact", () => {
+    const user = `${"a".repeat(64)}@${"b".repeat(180)}.com`;
+    expect(malwareAlertKey("npm", `@scope/${"n".repeat(100)}`, user)).toContain(user);
   });
 });

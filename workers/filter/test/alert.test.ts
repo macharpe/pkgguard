@@ -52,15 +52,29 @@ describe("maybeAlertMalware", () => {
     expect(posted).toHaveLength(1);
     expect(posted[0]?.url).toBe(HOOK);
     expect(posted[0]?.text).toContain("`event-stream@3.3.6`");
-    expect(put).toHaveBeenCalledWith(malwareAlertKey("npm", "event-stream"), "1", { expirationTtl: MALWARE_ALERT_TTL_SECONDS });
+    expect(put).toHaveBeenCalledWith(malwareAlertKey("npm", "event-stream", "dev@example.com"), "1", { expirationTtl: MALWARE_ALERT_TTL_SECONDS });
   });
-  it("sends only one alert per package per hour, whatever the version", async () => {
+  it("sends only one alert per package per user per hour, whatever the version or the case", async () => {
     const { posted } = chat();
     expect(await maybeAlertMalware(deps(), sample)).toBe("sent");
     expect(await maybeAlertMalware(deps(), sample)).toBe("rate-limited");
     expect(await maybeAlertMalware(deps(), { ...sample, version: "3.3.7" })).toBe("rate-limited");
-    expect(await maybeAlertMalware(deps(), { ...sample, name: "Event-Stream" })).toBe("rate-limited");
+    expect(await maybeAlertMalware(deps(), { ...sample, name: "Event-Stream", user: "DEV@example.com" })).toBe("rate-limited");
     expect(posted).toHaveLength(1);
+  });
+  it("alerts again for a different user on the same package, naming that user", async () => {
+    const { posted } = chat();
+    await maybeAlertMalware(deps(), sample);
+    expect(await maybeAlertMalware(deps(), { ...sample, user: "other@example.com" })).toBe("sent");
+    expect(posted).toHaveLength(2);
+    expect(posted[1]?.text).toContain("`other@example.com`");
+  });
+  it("rate-limits unidentified downloads together, so they cannot flood the space", async () => {
+    const { posted } = chat();
+    expect(await maybeAlertMalware(deps(), { ...sample, user: null })).toBe("sent");
+    expect(await maybeAlertMalware(deps(), { ...sample, user: null })).toBe("rate-limited");
+    expect(posted).toHaveLength(1);
+    expect(posted[0]?.text).toContain("`unknown`");
   });
   it("alerts separately for another package and for the same name in another ecosystem", async () => {
     const { posted } = chat();
@@ -74,7 +88,7 @@ describe("maybeAlertMalware", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const put = vi.spyOn(env.PKG_INDEX, "put");
     expect(await maybeAlertMalware(deps(), sample)).toBe("failed");
-    expect(put).toHaveBeenLastCalledWith(malwareAlertKey("npm", "event-stream"), "1", { expirationTtl: 60 });
+    expect(put).toHaveBeenLastCalledWith(malwareAlertKey("npm", "event-stream", "dev@example.com"), "1", { expirationTtl: 60 });
   });
   it("does nothing, and posts nothing, when the rate-limit store cannot be read", async () => {
     const { posted } = chat();
@@ -126,7 +140,7 @@ describe("the filter and its malware alerts", () => {
     expect(posted[0]?.text).toContain("*blocked*");
     expect(posted[0]?.text).not.toContain("not blocked");
   });
-  it("sends one alert for repeated downloads of the same package", async () => {
+  it("sends one alert per user for repeated downloads of the same package", async () => {
     const { posted } = chat();
     for (let i = 0; i < 4; i++) {
       await run(tarball("event-stream", "3.3.6"), { env: withHook });
@@ -134,6 +148,15 @@ describe("the filter and its malware alerts", () => {
     }
     expect(posted).toHaveLength(1);
     expect(await detections()).toHaveLength(4);
+  });
+  it("alerts once for each person who downloads the same malware, through the real middleware", async () => {
+    const { posted } = chat();
+    const as = (email: string | null) => ({ env: withHook, identity: async () => (email === null ? null : { email }) });
+    for (const who of ["alice@example.com", "bob@example.com", "alice@example.com", "bob@example.com", null, null]) {
+      await run(tarball("event-stream", "3.3.6"), as(who));
+      await settle();
+    }
+    expect(posted.map((p) => /User: `([^`]+)`/.exec(p.text)?.[1])).toEqual(["alice@example.com", "bob@example.com", "unknown"]);
   });
   it("does not alert for a vulnerability, which is only logged", async () => {
     const { posted } = chat();

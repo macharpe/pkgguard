@@ -12,12 +12,12 @@ export interface AlertDeps {
 }
 
 /**
- * At most one malware alert per package per hour. Nothing here may affect the download, so the caller runs it in
+ * At most one malware alert per package per user per hour. Nothing here may affect the download, so the caller runs it in
  * the background and any KV error just means no alert.
  */
 export async function maybeAlertMalware(deps: AlertDeps, alert: MalwareAlert): Promise<AlertResult> {
   if (!deps.webhook) return "skipped";
-  const key = malwareAlertKey(alert.ecosystem, alert.name);
+  const key = malwareAlertKey(alert.ecosystem, alert.name, alert.user);
   try {
     if ((await deps.kv.get(key)) !== null) return "rate-limited";
     await deps.kv.put(key, "1", { expirationTtl: MALWARE_ALERT_TTL_SECONDS });
