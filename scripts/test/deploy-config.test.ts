@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generate } from "../generate-deploy-config.js";
 import { ENFORCE_ENV, FIELD_NAMES, WORKERS, applyEnforce, enforcementOf, field, renderConfig, validate, type FieldName } from "../lib/deploy-config.js";
 
@@ -13,6 +13,15 @@ const GOOD = {
   TEAM_DOMAIN: "acme.cloudflareaccess.com",
   ACCESS_AUD: "c".repeat(64),
 } satisfies Record<FieldName, string>;
+
+// Set for the whole file, so it is part of the ambient environment the filesystem tests must clear and then restore.
+const SENTINEL = "PKGGUARD_TEST_SENTINEL";
+beforeAll(() => {
+  process.env[SENTINEL] = "kept";
+});
+afterAll(() => {
+  delete process.env[SENTINEL];
+});
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const filterTemplate = (): string => readFileSync(join(REPO_ROOT, "workers/filter/wrangler.jsonc"), "utf8");
@@ -112,12 +121,23 @@ describe("generate (filesystem)", () => {
     `PKGGUARD_D1_ID=${GOOD.D1_ID}`,
   ];
 
+  // The generator reads process.env before the file, so a developer who has run `source .deploy.env` would otherwise
+  // change what these tests assert. Every test starts from an environment with no PKGGUARD_* variables.
+  let ambient: Record<string, string | undefined>;
+  const pkgguardVars = (): string[] => Object.keys(process.env).filter((k) => k.startsWith("PKGGUARD_"));
+
   beforeEach(() => {
+    ambient = Object.fromEntries(pkgguardVars().map((k) => [k, process.env[k]]));
+    for (const k of pkgguardVars()) delete process.env[k];
     root = mkdtempSync(join(tmpdir(), "pkgguard-gen-"));
     mkdirSync(join(root, "workers/filter"), { recursive: true });
     writeFileSync(join(root, "workers/filter/wrangler.jsonc"), filterTemplate());
   });
-  afterEach(() => rmSync(root, { recursive: true, force: true }));
+  afterEach(() => {
+    for (const k of pkgguardVars()) delete process.env[k];
+    Object.assign(process.env, ambient);
+    rmSync(root, { recursive: true, force: true });
+  });
 
   it("writes wrangler.local.jsonc at mode 0600 with real values and leaves no temp file", () => {
     writeEnv(goodEnv());
@@ -130,14 +150,8 @@ describe("generate (filesystem)", () => {
     expect(readdirSync(join(root, "workers/filter")).filter((f) => f.endsWith(".tmp"))).toEqual([]);
   });
   it("fails closed with no .deploy.env and writes nothing", () => {
-    const saved = Object.fromEntries(Object.keys(process.env).filter((k) => k.startsWith("PKGGUARD_")).map((k) => [k, process.env[k]]));
-    for (const k of Object.keys(saved)) delete process.env[k];
-    try {
-      expect(() => generate("filter", root)).toThrow(/\.deploy\.env\.example/);
-      expect(existsSync(join(root, "workers/filter/wrangler.local.jsonc"))).toBe(false);
-    } finally {
-      Object.assign(process.env, saved);
-    }
+    expect(() => generate("filter", root)).toThrow(/\.deploy\.env\.example/);
+    expect(existsSync(join(root, "workers/filter/wrangler.local.jsonc"))).toBe(false);
   });
   it("a failed run leaves the previous generated file untouched", () => {
     writeEnv(goodEnv());
@@ -246,5 +260,11 @@ describe("the committed admin template", () => {
   it("does not declare the webhook: a secret must never sit in a committed config", () => {
     expect(adminTemplate()).not.toMatch(/GCHAT|webhook|chat\.googleapis/i);
     expect(filterTemplate()).not.toMatch(/GCHAT|webhook|chat\.googleapis/i);
+  });
+});
+
+describe("generate (filesystem) environment isolation", () => {
+  it("puts the ambient PKGGUARD_* variables back after the tests that clear them", () => {
+    expect(process.env[SENTINEL]).toBe("kept");
   });
 });
