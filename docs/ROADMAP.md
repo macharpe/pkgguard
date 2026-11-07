@@ -16,10 +16,11 @@ Everything marked *measured* was taken from the live OSV feeds and registries on
 6. [Per-ecosystem designs](#per-ecosystem-designs)
 7. [Cross-cutting work](#cross-cutting-work)
 8. [Order of operations for each ecosystem](#order-of-operations-for-each-ecosystem)
-9. [Definition of done](#definition-of-done)
-10. [Decisions needed](#decisions-needed)
-11. [Risks and open questions](#risks-and-open-questions)
-12. [Method](#method)
+9. [Test environment and procedure](#test-environment-and-procedure)
+10. [Definition of done](#definition-of-done)
+11. [Decisions needed](#decisions-needed)
+12. [Risks and open questions](#risks-and-open-questions)
+13. [Method](#method)
 
 ## Summary
 
@@ -53,6 +54,7 @@ Measured. "Malware" applies the repository's classifier: the `MAL-` ID prefix **
 - **Volume is a non-issue.** The four add about 23 MB and about 20,400 records to roughly 246 MB and 258,000. About 9,600 more KV keys; no schema change (`ecosystem` is already `TEXT`).
 - **The blocking value is concentrated in RubyGems and NuGet.** Cargo and Go are, in practice, vulnerability-logging features, which PkgGuard does by design (CVEs are logged, never blocked).
 - **Cargo's malware records describe packages crates.io has already removed.** All seven records that only the CWE rule finds (`GHSA-6v2j-vr4h-f632` and six others) read "was removed from crates.io for malicious code". Blocking them is of little use against the public registry, and of real use only against a mirror or cache that still serves them.
+- **Most of these malware records describe packages the registry has already removed.** *Measured* with metadata requests only (nothing downloaded): none of Cargo's 28 and none of Go's 21 can still be downloaded, and none of a random 80 each from RubyGems and NuGet. A public-registry block therefore matters only in the window between an OSV record appearing and the registry removing the package; that window was not measured. The blocking value is larger against **mirrors and caches** (Artifactory, Nexus and similar), which Gateway classifies by URL shape and which can keep serving a package the registry has dropped. Weigh the malware counts above with this in mind.
 - **The CWE rule earns its keep again.** Seven of Cargo's 28 would be missed by a `MAL-` prefix check. This is the same lesson as `event-stream`.
 
 ## Maven: out of scope
@@ -340,11 +342,74 @@ The ordering is not cosmetic. `planRun` throws if an enabled ecosystem has no `s
 4. **Run a manual refresh** and confirm it completes with zero errors for every ecosystem.
 5. **Preflight the test device**: TLS issuer on the new hosts, client trust.
 6. **Widen the Forward rule** with `gateway-rule sync`. Watch the dashboard and the unparsed-request log.
-7. **Live test with a real client**: a known-malware package is observed (not blocked), and its detection row appears attributed to the right user; a clean package passes; a CVE-only package is flagged.
-8. **Remove the ecosystem from the observe-only list**, redeploy, and repeat the malware download to confirm the 403 and what the client prints.
+7. **Live test with a real client**, following [Test environment and procedure](#test-environment-and-procedure): a harmless canary package under a block override is recorded as `flagged` (observe-only), attributed to the right user; a clean package passes; a CVE-only package is flagged.
+8. **Remove the ecosystem from the observe-only list**, redeploy, and repeat the canary download to confirm the 403 and what the client prints.
 9. **Document**: README ecosystem statement, the demo script and the limitations, then release.
 
 Rollback at any step is the reverse: remove the ecosystem from the rule with `sync`, then from the enabled list. The data can stay loaded.
+
+## Test environment and procedure
+
+A test device behind Gateway is the only way to settle the open questions, so this plan assumes one.
+
+### Requirements
+
+- Enrolled in Cloudflare One with an active session, and its user inside **both** the Forward rule's scope and the Do Not Inspect exemption (the "two scopes, one audience" limitation).
+- The Gateway certificate trusted by the operating system.
+- The TLS issuer check passing on every host in the table under [TLS decryption and client trust](#tls-decryption-and-client-trust).
+- Reach to each toolchain's installer, and a few GB free.
+
+### Baseline of the reference device
+
+*Measured on 2026-11-07, before any toolchain was installed:* Apple silicon, session connected and healthy. **All ten registry hosts checked** (the npm and PyPI registries, and the hosts of the four new ecosystems, including both Cargo and Go metadata hosts) already present the Gateway certificate, so no carve-out change is needed. The system Ruby fetched a gem from the RubyGems host through Gateway with **no trust configuration**. There was no Rust, Go or .NET toolchain. The installers for all three are reachable.
+
+So Phase 1 starts at installing a toolchain, not at enrolment or exemption work.
+
+### Isolation
+
+Install everything under **one lab directory**, using each toolchain's user-space installer with its own home variables:
+
+| Ecosystem | Install | Isolation variables (confirm each in the live phase) |
+|---|---|---|
+| Cargo | `rustup` | `RUSTUP_HOME`, `CARGO_HOME` |
+| RubyGems | The system Ruby is enough for `gem fetch` | `GEM_HOME` |
+| Go | The official tarball | `GOROOT`, `GOPATH`, `GOMODCACHE` |
+| NuGet | The `dotnet-install` script | `DOTNET_ROOT`, `NUGET_PACKAGES` |
+
+This keeps the device clean (nothing system-wide, and no Homebrew scattering files), gives every run an **empty cache** so the cache gap cannot hide a request, and makes teardown a single `rm -rf`. If the device belongs to someone else, tell them before installing.
+
+### Safety
+
+Use fetch-only commands and never build, install or run what was fetched: `cargo fetch`, `gem fetch` (not `gem install`, which can run an extension's build script), `go mod download`, `dotnet restore`.
+
+### Canary, not malware
+
+Because the malware is gone from the registries (see [What each ecosystem buys](#what-each-ecosystem-buys)), the live block test uses a **canary**: a small, harmless, popular package placed under a **block override** through the admin API. It exercises the whole path: Gateway, the Forward rule, the Worker, the decision, the block response and what the client prints. Real malware records are covered separately by looking up a pinned fixture's package and affected version in the index, which needs no download.
+
+For the flag test, use a real, still-downloadable package with a known CVE, chosen by looking it up in the index first.
+
+### Procedure, per ecosystem
+
+| Step | Do | Produces |
+|---|---|---|
+| A. Classify | Fetch a clean package with the client's verbose output on, capturing the exact request URLs. Read the Gateway HTTP activity log for those requests. Needs no code and no rule change: classification is Gateway's. | The URL shape the client sends, whether Gateway classified it, and the `PackageInfo.Ecosystem` string |
+| B. Trust | Note whether step A succeeded with no extra configuration. If not, record the error and the configuration that fixes it. | The per-client trust instructions for the demo notes |
+| C. Observe | After the ecosystem is enabled observe-only and the rule widened, fetch the canary. | A `flagged` row attributed to the user, with a package name and version that match Gateway's logged PURL |
+| D. Enforce | Enable blocking for the ecosystem and fetch the canary again. Capture stdout, stderr and the exit code. For Go, also check whether it falls through to `direct`. | The block message as the client renders it |
+| E. Cache | Repeat the fetch without emptying the cache. | Confirmation of the documented cache gap for this client |
+
+Step A for Cargo is the spike that gates Phase 1, and must also cover the second URL shape by requesting the `.crate` URL directly. For NuGet, add a direct request to the v2 endpoint to see whether the redirect is classified.
+
+### Results to record
+
+Fill this in as each phase runs, and move the conclusions into the demo notes and the limitations.
+
+| Ecosystem | URL shape requested | Classified by Gateway | `PackageInfo.Ecosystem` | Trusts the certificate unaided | Client output on 403 | Falls through on 403 |
+|---|---|---|---|---|---|---|
+| Cargo | | | | | | n/a |
+| RubyGems | | | | | | n/a |
+| NuGet | | | | | | n/a |
+| Go | | | | | | |
 
 ## Definition of done
 
@@ -355,7 +420,8 @@ Each phase is finished only when all of this is true for the ecosystem:
 - The pinned fixtures above pass, including a fixture for each ambiguity this document names.
 - The differential comparator fixture passes (RubyGems and NuGet).
 - The cross-ecosystem ambiguity test passes with the new parser in the corpus.
-- A real client behind Gateway: malware is blocked with a 403, a clean control installs, a CVE-only package is flagged and allowed, and the dashboard row is attributed to the user. The client's block message is recorded in the demo documentation.
+- A real client behind Gateway: a canary package under a block override is stopped with a 403, a clean control installs, a CVE-only package is flagged and allowed, and the dashboard row is attributed to the user. The client's block message is recorded in the demo documentation.
+- A real malware record is covered without downloading it: the advisory lookup (dashboard or `/api/advisories` with `ecosystem` and `version`) returns `blocked` for a pinned fixture's package and affected version.
 - The full suite passes unfiltered from a clean environment, in a fresh clone, and the leak sweep over tracked files and history is clean.
 
 ## Decisions needed
@@ -384,7 +450,7 @@ Each phase is finished only when all of this is true for the ecosystem:
 | Mirrors that Gateway classifies by URL shape | The Worker's parser must agree with Gateway's, including for path prefixes | The unparsed-request log line is the only signal; watch it after each widening |
 | Yarn and similar clients | Not tested for npm either (the host works through the npm client) | Out of scope here; list under the same caveat |
 
-Open questions, none answerable without a test device:
+Open questions, each answered on the test device during its phase (results go in the table in [Test environment and procedure](#test-environment-and-procedure)):
 
 - How each of `gem`, `cargo`, `go` and `dotnet` renders a 403 from Gateway.
 - Whether `go` falls through to `direct` on a 403.
@@ -400,6 +466,7 @@ All figures are from 2026-11-07 and can be reproduced; Phase 0's `bootstrap cens
 - **Rejected versions:** every `introduced`, `fixed`, `last_affected` (excluding `"0"`) and `versions[]` string, passed through `semver.parse` from the repository's dependency.
 - **OSV ecosystem strings:** a package query to `api.osv.dev` per ecosystem, with an invalid ecosystem as the negative control (it returns `invalid ecosystem`).
 - **Registry URL behaviour:** `HEAD` requests to the public registries for the shapes above, including wrong-case and escaped variants.
+- **Whether malware is still downloadable:** for each malware record, a metadata request only (the crates.io sparse index, the RubyGems versions API, the NuGet flat-container index, the Go proxy version list). All 28 Cargo and 21 Go records, and a random 80 each for RubyGems and NuGet. No package was downloaded.
 - **The Go and PyPI mis-parse:** the existing `parsePackageUrl` run against Go proxy URLs.
 - **Cloudflare's classifier and version standards:** the [Package registry security](https://developers.cloudflare.com/cloudflare-one/traffic-controls/http-policies/package-registry-security/) documentation, which lists the URL shape, namespace meaning and versioning standard for all seven ecosystems it detects.
 - **Index and platform suffixes:** the RubyGems compact index, `https://index.rubygems.org/versions`.
