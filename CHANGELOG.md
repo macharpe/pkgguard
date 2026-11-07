@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.1.2] - 2026-11-07
+
+### Documentation
+- The rule's identity scope and the Do Not Inspect exemption must match (`ce5bd27`)
+
 ## [0.1.1] - 2026-11-07
 
 ### Documentation
