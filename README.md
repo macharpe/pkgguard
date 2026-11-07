@@ -1,0 +1,181 @@
+# PkgGuard
+
+Block malicious npm and PyPI packages at the network edge, using a live [OSV.dev](https://osv.dev) feed, without writing a policy per package.
+
+PkgGuard is two Cloudflare Workers behind a single Cloudflare Gateway rule. When a developer on an enrolled device downloads a package, Gateway hands the request to a Worker. The Worker checks the package against an index built from OSV and either lets the download through or stops it. Malware is blocked. Ordinary vulnerabilities are logged, because blocking every CVE would break most real builds.
+
+## Why
+
+[Package Registry Security](https://developers.cloudflare.com/cloudflare-one/traffic-controls/http-policies/package-registry-security/) gives Gateway `pkg.*` selectors for allowing or blocking package downloads. That works for a handful of packages. It does not work for a live feed: OSV tracks hundreds of thousands of records, and Gateway allows 500 HTTP policies per account.
+
+PkgGuard moves the decision out of the policy engine. The Gateway rule count stays at one, and the data scales on its own.
+
+## How it works
+
+```mermaid
+flowchart LR
+  Dev["Developer<br/>npm / pip"] -->|download| GW["Cloudflare Gateway<br/>1 Forward rule"]
+  GW -->|invoke| F["pkgguard-filter<br/>Worker"]
+  F --> O{"Override?"}
+  O -->|allow| N["next(): download proceeds"]
+  O -->|block| B["403"]
+  O -->|none| K[("KV index<br/>from OSV")]
+  K -->|miss| L["Live OSV query<br/>400 ms timeout"]
+  K -->|malware| B
+  K -->|CVE only| N
+  L -->|malware| B
+  L -->|else| N
+  F -.->|every decision| D[("D1<br/>detections")]
+  F -.->|malware| C["Google Chat alert"]
+  A["pkgguard-admin<br/>Worker + dashboard"] --- D
+  A -->|daily + monthly refresh| K
+  Access["Cloudflare Access"] --> A
+```
+
+| Component | Role |
+|---|---|
+| `pkgguard-filter` | Invoked by Gateway for every npm and PyPI download. Decides, records, and either blocks or continues. No public route. |
+| `pkgguard-admin` | Dashboard, REST API, the refresh Workflow and its crons. Behind Cloudflare Access. |
+| D1 | Source of truth: advisories, detections, overrides, refresh history, audit log. Powers the dashboard. |
+| KV | A flattened `ecosystem:name` index for fast reads on the download path, derived from D1. |
+| `packages/core` | Pure TypeScript with no Workers APIs: URL parsers, SemVer and PEP 440 comparison, OSV classification and range matching. Shared by both Workers and the bootstrap script. |
+
+### What gets blocked
+
+A record counts as **malware** if its ID or an alias starts with `MAL-`, **or** it carries a malicious-code weakness (CWE-506, 507, 510, 511 or 912). The weakness rule matters: well-known compromises such as `event-stream` are reviewed GitHub advisories with a `GHSA-` ID and no `MAL-` prefix, so a prefix check alone would miss them. Everything else is a **vulnerability**: recorded as `flagged`, never blocked.
+
+The order of decisions is: an administrator's **allow** override, then a **block** override, then the KV index, then a live OSV query on an index miss. The filter **fails open**: an internal error lets the download proceed and is logged, because Gateway itself fails closed on a Worker error and would otherwise break installs.
+
+### What a developer sees
+
+The client decides what is worth sending, and what actually reaches a terminal is limited. This was tested against real npm and pip behind Gateway.
+
+| Client | What the developer sees |
+|---|---|
+| **npm** | `E403`, with the reason, the advisory link, where to get help and a reference code on the error line |
+| **pip** | `403 Client Error: Forbidden`. Nothing in the response reaches pip's output, at any verbosity. The detail is in the Chat alert and the dashboard |
+| **curl** | A plain-text message with the same detail |
+| **Browser** | A self-contained page: no script, no external request, light and dark |
+
+Every block gets a short reference such as `PG-7Q2K4M`. It appears in the response, the Chat alert and the dashboard, which can be searched by it, so the code a developer quotes finds the event.
+
+## Requirements
+
+- A Cloudflare account with Zero Trust and Gateway, including the **Forward** action (Beta) and Package Registry Security selectors.
+- The Cloudflare One client on developer devices, with **TLS decryption** on. Gateway only classifies a download if the registry host is decrypted, so a Do Not Inspect rule covering a registry's application silently disables enforcement for that ecosystem.
+- A zone for the admin hostname, an Access identity provider, and existing reusable Access policies that admit your people.
+- Node 22 or later, and Terraform for the Access side.
+- Optional: a Google Chat space with an incoming webhook, for alerts.
+
+## Setup
+
+Wrangler reserves the `CLOUDFLARE_API_TOKEN` variable for its own login, so keep API tokens in `TF_VAR_cloudflare_api_token` instead. If Wrangler reports an invalid token despite a valid login, that variable is the first thing to check.
+
+Everything that identifies your account lives in a gitignored `.deploy.env`. The committed `wrangler.jsonc` files carry placeholders, and a generator writes the real ones before each deploy. It refuses to deploy while any placeholder remains.
+
+```bash
+npm install
+npx wrangler login
+cp .deploy.env.example .deploy.env       # fill in as you go
+```
+
+**1. Create the storage.** The database must be named `pkgguard-db`.
+
+```bash
+npx wrangler d1 create pkgguard-db       # D1 id  -> PKGGUARD_D1_ID
+npx wrangler kv namespace create PKG_INDEX   # KV id  -> PKGGUARD_KV_ID
+```
+
+**2. Access and the service token** (Terraform). Never apply without reading the plan. See [terraform/README.md](terraform/README.md).
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars    # fill in; gitignored
+export TF_VAR_cloudflare_api_token=... TF_VAR_cloudflare_account_id=...
+terraform init && terraform plan -out=tfplan
+```
+
+After applying, put the `admin_aud` output in `PKGGUARD_ACCESS_AUD`.
+
+**3. Load the advisory index.** This is for a fresh database: it applies every migration in `migrations/` in order, then the data. To rehearse first, run `generate --limit 200` and then `load --local`.
+
+```bash
+npm run bootstrap -- download
+npm run bootstrap -- generate
+npm run bootstrap -- load --remote
+```
+
+**4. Deploy both Workers.** The filter starts **observe-only**: it records what it would block and blocks nothing.
+
+```bash
+npm run deploy:filter
+npm run deploy:admin
+```
+
+**5. Alerts** (optional). The webhook is a secret, never a config value.
+
+```bash
+printf '%s' "$WEBHOOK_URL" | npx wrangler secret put GCHAT_WEBHOOK -c workers/filter/wrangler.local.jsonc
+printf '%s' "$WEBHOOK_URL" | npx wrangler secret put GCHAT_WEBHOOK -c workers/admin/wrangler.local.jsonc
+```
+
+**6. Create and enable the Gateway rule.** `create` always makes it disabled. Scope it in `.deploy.env`: `PKGGUARD_SCOPE` takes email addresses and `@domain` entries, and an empty value is an error, so the rule is never unscoped.
+
+```bash
+export TF_VAR_cloudflare_api_token=...
+npm run gateway:rule -- create
+npm run gateway:rule -- status
+npm run gateway:rule -- enable
+```
+
+**7. Watch, then enforce.** Install a few packages and open the dashboard. When the detections look right, set `PKGGUARD_ENFORCE=true` in `.deploy.env` and run `npm run deploy:filter`. The deploy prints the mode it wrote.
+
+## Operating it
+
+| Task | How |
+|---|---|
+| **Turn it off, fast** | `npm run gateway:rule -- disable`. It applies in a few seconds, and in testing malware downloaded normally within twelve. Rehearse it before you rely on it. |
+| Turn it back on | `npm run gateway:rule -- enable` |
+| Check the rule | `npm run gateway:rule -- status` reports the rule and any drift from the configured scope |
+| Block or allow a package now | The dashboard's **Overrides** panel. An allow beats a block, and both beat OSV. A change usually reaches the filter within seconds; KV propagation can take up to a minute. |
+| Find what a developer hit | Paste the reference into the dashboard's **Reference** box |
+| Refresh the index | Daily at 04:00 UTC, monthly at 03:00 UTC, or the dashboard's refresh button. The monthly and daily runs are the same idempotent delta. |
+| Stop enforcing without turning it off | Set `PKGGUARD_ENFORCE=false` and redeploy the filter: detections continue, nothing is blocked |
+
+Before **deleting** the filter Worker, delete or repoint the Gateway rule first. Deleting the Worker does not disable the rule, and matching requests then return `500`.
+
+## Known limitations
+
+- **Identity scoping.** A device with no identity (no active Cloudflare One session, or proxy-endpoint mode) does not match an identity-scoped rule, so its downloads are not filtered.
+- **pip.** A blocked `pip` user sees only `403 Forbidden` (see above).
+- **PyPI coverage is thinner than npm.** PyPI removes malicious packages quickly and most never get an OSV advisory. This is a property of the upstream data. PkgGuard supports PyPI, but it does not claim parity with npm.
+- **Coverage gaps in Gateway.** The Forward action does not run for `CONNECT` tunnels, WebSocket traffic or protocol upgrades, and it needs the registry host to be TLS-decrypted.
+- **Forward is a Beta feature**, and the Terraform provider does not yet support it, so the rule is managed through the API by `scripts/gateway-rule.ts`.
+- **Only GET and POST.** The admin API avoids other HTTP methods because a zone's managed WAF can block them before they reach the Worker. Verify any new write against a deployed hostname, not only locally.
+- **The Cloudflare One client's block notification** is a property of Gateway's Block action. A synthetic response from a Forward Worker does not trigger it.
+
+## Development
+
+```bash
+npm test                  # the whole suite, never filtered
+npm run typecheck
+npm run test:coverage
+npm run build:admin       # the dashboard, into workers/admin/dist
+```
+
+The tests run in the Workers runtime against real KV and D1 with the migrations applied. Security and correctness rules are checked by mutation: remove the rule, and a test has to fail.
+
+```
+packages/core/     pure TS: parsing, versions, OSV classification and matching, notifications
+workers/filter/    the Gateway-invoked Worker: decide, record, alert, respond
+workers/admin/     dashboard, API, refresh Workflow, crons (React + Kumo UI in ui/)
+scripts/           bootstrap, deploy-config generator, Gateway rule manager
+migrations/        D1 schema, applied in order
+terraform/         the Access application and service token
+```
+
+[AGENTS.md](AGENTS.md) records the invariants a change must not break, such as the load-bearing `GatewayMiddleware` class name and the fail-open rule.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
