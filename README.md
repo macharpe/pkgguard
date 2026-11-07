@@ -148,6 +148,7 @@ Before **deleting** the filter Worker, delete or repoint the Gateway rule first.
 
 - **Identity scoping.** A device with no identity (no active Cloudflare One session, or proxy-endpoint mode) does not match an identity-scoped rule, so its downloads are not filtered.
 - **pip.** A blocked `pip` user sees only `403 Forbidden` (see above).
+- **Local caches bypass it.** PkgGuard decides on a download that crosses the network. A package already in pip's or npm's local cache installs without one, so it is neither checked nor recorded. A package blocked as malware is never cached, because the block stops the download; the gap is a package cached *before* it was flagged. Tested: `pip download` of a cached wheel and `npm install` of a cached package both produced no detection. `pip --no-cache-dir` forces a fresh download.
 - **PyPI coverage is thinner than npm.** PyPI removes malicious packages quickly and most never get an OSV advisory. This is a property of the upstream data. PkgGuard supports PyPI, but it does not claim parity with npm.
 - **Coverage gaps in Gateway.** The Forward action does not run for `CONNECT` tunnels, WebSocket traffic or protocol upgrades, and it needs the registry host to be TLS-decrypted.
 - **Forward is a Beta feature**, and the Terraform provider does not yet support it, so the rule is managed through the API by `scripts/gateway-rule.ts`.

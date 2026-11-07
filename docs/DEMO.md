@@ -28,6 +28,8 @@ Do this ten minutes ahead, not in front of people.
 
 > **Alerts are limited to one per package, per user, per hour.** If you warm up by blocking `vfat-tools` and then block it again in the demo within the hour, the second block is recorded but sends **no Chat message**. Warm up with a different malware package, or block your live one for the first time on stage.
 
+> **pip serves a cached package without touching the network**, so PkgGuard never sees it and the dashboard gets no new row. Use `--no-cache-dir` for every pip command in the demo. npm behaves the same for `npm install` of a package it has cached, so warm up with a package the audience will not reinstall, and expect no new row on a repeat.
+
 Work in a scratch directory so a successful download leaves nothing behind: `cd "$(mktemp -d)"`.
 
 ## The script
@@ -44,7 +46,7 @@ Work in a scratch directory so a successful download leaves nothing behind: `cd 
 
 ```bash
 npm pack left-pad@1.3.0
-python3 -m pip download requests==2.25.0 --no-deps -d .
+python3 -m pip download --no-cache-dir requests==2.25.0 --no-deps -d .
 ```
 
 Both succeed. `requests==2.25.0` has a known vulnerability but is not malware.
@@ -103,6 +105,7 @@ npm run gateway:rule -- enable
 Close with the limits, because they are the questions you will be asked:
 
 - **pip users see only `403 Forbidden`.** Nothing in the response reaches pip's output. The detail is in the alert and the dashboard.
+- **It only controls downloads that cross the network.** A package already in pip's or npm's local cache installs without being checked. A blocked package is never cached, so the gap is a package cached before it was flagged.
 - **PyPI coverage is thinner than npm.** PyPI removes malware quickly and most never gets an advisory. It is supported, not equivalent.
 - **Identity scoping.** A device with no active Cloudflare One session is not filtered.
 
@@ -112,6 +115,7 @@ Close with the limits, because they are the questions you will be asked:
 |---|---|---|
 | Malware **downloads** instead of being blocked | Enforcement is off, the device has no identity, or the rule is disabled | `npm run gateway:rule -- status`; check the device's session; confirm the deploy printed `enforcement: ON` |
 | No Chat alert on a block | Already alerted for that package and user in the last hour | Block a package you have not blocked recently |
+| No new dashboard row for an install that worked | The client served it from its local cache | `pip --no-cache-dir`; for npm, use a package not installed before |
 | The test package returns 404 | The registry removed it | Pick another flagged package that still exists |
 | The override has no effect yet | KV propagation, normally seconds | Wait up to a minute |
 | The dashboard says the session ended | The Access session expired | Reload and sign in again |
