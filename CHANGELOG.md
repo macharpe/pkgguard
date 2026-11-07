@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.2.0] - 2026-11-07
+
+### Features
+- **admin:** A favicon for the dashboard (`a59ceda`)
+
 ## [0.1.2] - 2026-11-07
 
 ### Documentation
