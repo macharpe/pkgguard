@@ -47,7 +47,7 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm run typecheck` | `tsc --noEmit` over `packages/core`, `scripts` and `workers/filter` |
 | `npm run bootstrap -- download` | Fetch the npm and PyPI OSV zips into `scripts/data/` (gitignored) |
 | `npm run bootstrap -- generate [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files |
-| `npm run bootstrap -- load --local\|--remote [--dir DIR]` | Apply the migration and load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
+| `npm run bootstrap -- load --local\|--remote [--dir DIR]` | For a **fresh** database: apply every migration in `migrations/` in order (numbering must have no gap), then load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
 | `wrangler d1 execute pkgguard-db --remote -c workers/filter/wrangler.local.jsonc --file migrations/<n>.sql` | Apply a migration. They are not applied automatically. Record `wrangler d1 time-travel info pkgguard-db` first. |
@@ -106,7 +106,7 @@ Two non-obvious rules in `core`: an **unparseable version never matches** (it is
 
 ## Configuration
 
-Values come from the environment, falling back to `.deploy.env`. Copy `.deploy.env.example` to `.deploy.env` and fill it in. The deploy config (`wrangler.local.jsonc`) is generated before each deploy and is gitignored. Local secrets go in `.dev.vars`; copy `.dev.vars.example`.
+Values come from the environment, falling back to `.deploy.env`. Copy `.deploy.env.example` to `.deploy.env` and fill it in. The deploy config (`wrangler.local.jsonc`) is generated before each deploy and is gitignored. Secrets such as `GCHAT_WEBHOOK` are Worker secrets set with `wrangler secret put`; for local runs they go in the gitignored `.dev.vars`.
 
 ## Testing
 

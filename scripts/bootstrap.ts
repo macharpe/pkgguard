@@ -6,13 +6,15 @@
  *   npm run bootstrap -- load --local|--remote [--dir DIR]
  *
  * `generate` is deterministic and uses the same distill() path as the refresh Workflow.
- * `load` is resumable: finished steps are recorded in <dir>/checkpoint.json.
+ * `load` is for a fresh database: it applies every migration in migrations/, then the data. It is resumable:
+ * finished steps are recorded in <dir>/checkpoint.<local|remote>.json.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { distill, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
 import { loadDeployEnv } from "./lib/deploy-env.js";
+import { listMigrations } from "./lib/migrations.js";
 import { advisoryInsert, chunk, syncStateInsert } from "./lib/sql.js";
 import { forEachJsonEntry, writeLines } from "./lib/zip.js";
 
@@ -207,7 +209,12 @@ function load(): void {
   delete process.env["CLOUDFLARE_API_TOKEN"];
   const wrangler = (args: string[]): void => run("npx", ["wrangler", ...args, "-c", configPath, ...target]);
 
-  step("migration", () => wrangler(["d1", "execute", "pkgguard-db", "--file", resolve("migrations/0001_init.sql")]));
+  // Every migration, in order: the Workers expect the whole schema, and a missing table or column only shows up as a
+  // background write that fails silently.
+  const migrations = resolve("migrations");
+  for (const file of listMigrations(migrations)) {
+    step(`migration:${file}`, () => wrangler(["d1", "execute", "pkgguard-db", "--file", join(migrations, file)]));
+  }
   for (const file of readdirSync(join(dir, "sql")).sort()) {
     step(`sql:${file}`, () => wrangler(["d1", "execute", "pkgguard-db", "--file", join(dir, "sql", file), "-y"]));
   }
