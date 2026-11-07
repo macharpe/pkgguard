@@ -22,7 +22,10 @@ Do this ten minutes ahead, not in front of people.
    curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/zennittts/0.1.0/json   # expect 200
    ```
    If either is gone, find another entry the index flags as malware that is still downloadable, and use it throughout.
-4. **The client device is enrolled** and its Cloudflare One session is active. Without an identity, the rule does not match and nothing is filtered.
+4. **The client device is enrolled, its Cloudflare One session is active, and its registry traffic is decrypted.** Without an identity, the rule does not match and nothing is filtered. Being in the rule's scope is not enough: if the user is still covered by your Do Not Inspect exemption, malware downloads silently and the dashboard stays empty. Check the TLS issuer, which must name Cloudflare, not the registry's own CA, for each host:
+   ```bash
+   for h in registry.npmjs.org pypi.org files.pythonhosted.org; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
+   ```
 5. **Open three windows:** a terminal on the enrolled device, the dashboard at `https://pkgguard.example.com`, and the Chat space that receives alerts.
 6. **Warm the dashboard with real traffic, but not with the package you will block live.** Run the clean installs from act 2 once, so the feed is not empty.
 
@@ -113,7 +116,7 @@ Close with the limits, because they are the questions you will be asked:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Malware **downloads** instead of being blocked | Enforcement is off, the device has no identity, or the rule is disabled | `npm run gateway:rule -- status`; check the device's session; confirm the deploy printed `enforcement: ON` |
+| Malware **downloads** instead of being blocked | Enforcement is off, the device has no identity, the rule is disabled, or the user is still on Do Not Inspect for the registry (the TLS issuer is not Cloudflare's) | `npm run gateway:rule -- status`; check the device's session; confirm the deploy printed `enforcement: ON` |
 | No Chat alert on a block | Already alerted for that package and user in the last hour | Block a package you have not blocked recently |
 | No new dashboard row for an install that worked | The client served it from its local cache | `pip --no-cache-dir`; for npm, use a package not installed before |
 | The test package returns 404 | The registry removed it | Pick another flagged package that still exists |
