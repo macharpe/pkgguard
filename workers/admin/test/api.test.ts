@@ -22,14 +22,14 @@ describe("authentication", () => {
     expect((await call("/api/status", await user())).status).toBe(200);
   });
   it("rejects a token issued for another application, on every path", async () => {
-    for (const path of ["/", "/api/status", "/assets/app-abc123.js"]) {
+    for (const path of ["/", "/api/status", "/assets/app-abc123.js", "/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png"]) {
       expect((await call(path, await user(OTHER_AUD))).status, path).toBe(403);
       expect((await call(path, await serviceToken(OTHER_AUD))).status, path).toBe(403);
     }
   });
   it("keeps a service token to the API: it is refused the dashboard and every asset", async () => {
     const token = await serviceToken();
-    for (const path of ["/", "/index.html", "/assets/app-abc123.js", "/theme-init.js", "/favicon.ico"]) {
+    for (const path of ["/", "/index.html", "/assets/app-abc123.js", "/theme-init.js", "/favicon.ico", "/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png"]) {
       const r = await call(path, token);
       expect(r.status, path).toBe(403);
       expect(await r.json(), path).toEqual({ error: "service tokens may only call the API" });
