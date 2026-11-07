@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.1.1] - 2026-11-07
+
+### Documentation
+- A package already in a local cache is never checked (`de72d8e`)
+
 ## [0.1.0] - 2026-11-07
 
 ### Features
@@ -42,4 +47,3 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) with 
 - **agents:** Document the admin Worker and its invariants (`5ed53a4`)
 - **agents:** Document the refresh pipeline and its invariants (`d04863a`)
 - README and a five-minute scripted demo (`4c0b1c4`)
-
