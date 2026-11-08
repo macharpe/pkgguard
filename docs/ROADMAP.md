@@ -1,6 +1,6 @@
 # Roadmap: RubyGems, Cargo, Go and NuGet
 
-Status: **proposal, not started.** PkgGuard enforces npm and PyPI today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order.
+Status: **Phase 0 is done and live; Phase 1 (Cargo) is next.** PkgGuard enforces npm and PyPI today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome).
 
 **Maven is deliberately out of scope**, for two measured reasons recorded in [Maven](#maven-out-of-scope). The decision can be revisited.
 
@@ -222,6 +222,23 @@ A single test iterates over every id in the registry and fails if any is missing
 - A golden test over a corpus of URLs shows npm and PyPI parse and decide **identically** before and after.
 - The completeness test exists and has been mutation-checked.
 - No behaviour change is observable on the live deployment.
+
+### Phase 0 outcome
+
+All four exit criteria are met. It shipped as seven signed commits, and was deployed and checked through the real Gateway.
+
+- **Tests.** 1172 pass, plus one deliberate expected failure (the Go-URL-read-as-PyPI gap, which must start passing in the Go phase). A fresh clone of the final commit installs, typechecks, builds and passes unfiltered.
+- **Identical behaviour.** The golden snapshot, taken before the refactor from the old code, still matches byte for byte. Known-malware replays through the real Gateway were blocked exactly as before (npm, PyPI sdist and wheel, the Yarn host); a clean package and a CVE-only package passed.
+- **Observe-only proven end to end.** With `pypi` observe-only, PyPI malware passed and was recorded `flagged` with a reference while npm malware was still blocked; restoring the setting blocked PyPI again. This is the mechanism every new ecosystem will start under.
+- **Mutation-checked.** 32 deliberate breaks of the registry, the admin wiring and the filter change all fail the suite.
+
+Where it differs from the plan above:
+
+- **Candidates** (`parsePackageCandidates`) are in place and the filter decides every reading, but nothing returns more than one reading yet. The first ecosystem that will is RubyGems.
+- **`bootstrap census`** counts unreadable range boundaries apart from unreadable listed versions, because they cost different things (see [Versions](#versions-two-comparators-cannot-reuse-comparesemver)). It also reports how many sit in malware advisories.
+- **Loading an ecosystem before it is enabled** needed an explicit ecosystem list on `distill` (`distillFor`); `distill` itself keeps one argument because callers pass it to `flatMap`.
+- **The unrecognised-request log** is written, but a **dashboard count of it is not.** A KV counter per request would hit KV's one-write-per-second limit on a key, so the count needs a different design (a D1 table with periodic aggregation, or sampling). Until then the signal is in the Worker's logs.
+- **Tests found two quirks of existing behaviour, left unchanged** because Phase 0 changes none: the PyPI override-name pattern accepts separator-only names (`..` becomes the stored key `-`, harmless), and a log helper of my own briefly leaked a fragment of a version through an extension pattern, which a test caught before it shipped.
 
 ## Per-ecosystem designs
 
