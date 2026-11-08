@@ -12,7 +12,10 @@ export const ECOSYSTEMS: Readonly<Record<Ecosystem, EcosystemSpec>> = { npm, pyp
 
 export const ecosystemSpec = (ecosystem: Ecosystem): EcosystemSpec => ECOSYSTEMS[ecosystem];
 
-/** The enabled ecosystem OSV calls `osvName`, or null. A lookup by search, so an inherited key such as "constructor" cannot match. */
-export function ecosystemFromOsvName(osvName: unknown): Ecosystem | null {
-  return typeof osvName === "string" ? (ENABLED_ECOSYSTEMS.find((id) => ECOSYSTEMS[id].osvName === osvName) ?? null) : null;
+/**
+ * The ecosystem OSV calls `osvName`, among `among` (the enabled ones unless told otherwise), or null. A lookup by
+ * search, so an inherited key such as "constructor" cannot match.
+ */
+export function ecosystemFromOsvName(osvName: unknown, among: readonly Ecosystem[] = ENABLED_ECOSYSTEMS): Ecosystem | null {
+  return typeof osvName === "string" ? (among.find((id) => ECOSYSTEMS[id].osvName === osvName) ?? null) : null;
 }

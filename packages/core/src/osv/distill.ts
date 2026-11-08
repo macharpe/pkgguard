@@ -1,4 +1,5 @@
 import type { Ecosystem } from "../ecosystem-ids.js";
+import { ENABLED_ECOSYSTEMS } from "../ecosystem-ids.js";
 import { ECOSYSTEMS, ecosystemFromOsvName } from "../ecosystems/index.js";
 import { normalizeName } from "../normalize.js";
 import { classify, collectCweIds } from "./classify.js";
@@ -30,16 +31,26 @@ function severityOf(record: OsvRecord): string | null {
 }
 
 /**
- * Turns an OSV record into advisory rows for the ecosystems in scope.
+ * Turns an OSV record into advisory rows for the enabled ecosystems.
  * Multiple `affected[]` entries for one package are merged. GIT ranges are dropped.
  * Total for well-formed input; entries without a usable package are skipped.
+ *
+ * Takes one argument on purpose: callers pass it straight to `flatMap`, which would hand it an index as a second.
  */
 export function distill(record: OsvRecord): Advisory[] {
+  return distillFor(record, ENABLED_ECOSYSTEMS);
+}
+
+/**
+ * The same, for a chosen set of ecosystems. The bootstrap uses it to load an ecosystem that is defined but not yet
+ * enabled: the data goes in first, and enabling comes after.
+ */
+export function distillFor(record: OsvRecord, ecosystems: readonly Ecosystem[]): Advisory[] {
   const kind = classify(record);
   const merged = new Map<string, Advisory>();
 
   for (const affected of record.affected ?? []) {
-    const ecosystem = ecosystemFromOsvName(affected.package?.ecosystem);
+    const ecosystem = ecosystemFromOsvName(affected.package?.ecosystem, ecosystems);
     const rawName = affected.package?.name;
     if (!ecosystem || typeof rawName !== "string" || rawName.trim() === "") continue;
 

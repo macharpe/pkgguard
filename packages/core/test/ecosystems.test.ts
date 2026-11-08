@@ -9,6 +9,7 @@ import {
   advisoryRow,
   compareVersions,
   distill,
+  distillFor,
   ecosystemFromOsvName,
   ecosystemLabel,
   enabledEcosystemSqlList,
@@ -186,6 +187,31 @@ describe.each(ECOSYSTEM_IDS)("ecosystem %s meets the whole contract", (id) => {
     for (const name of f.overrideAccepts) expect(spec.overrideNamePattern.test(name), name).toBe(true);
     for (const name of f.overrideRejects) expect(spec.overrideNamePattern.test(name), JSON.stringify(name)).toBe(false);
     expect(spec.maxNameLength).toBeGreaterThan(0);
+  });
+});
+
+describe("distilling for a chosen set of ecosystems", () => {
+  const both = {
+    id: "GHSA-both-0001",
+    modified: "2026-01-01T00:00:00Z",
+    affected: [
+      { package: { ecosystem: "npm", name: "shared" }, versions: ["1.0.0"] },
+      { package: { ecosystem: "PyPI", name: "shared" }, versions: ["1.0.0"] },
+    ],
+  } as unknown as OsvRecord;
+
+  it("keeps only the ones asked for", () => {
+    expect(distillFor(both, ["pypi"]).map((r) => r.ecosystem)).toEqual(["pypi"]);
+    expect(distillFor(both, ["npm"]).map((r) => r.ecosystem)).toEqual(["npm"]);
+    expect(distillFor(both, ["npm", "pypi"]).map((r) => r.ecosystem).sort()).toEqual(["npm", "pypi"]);
+    expect(distillFor(both, [])).toEqual([]);
+  });
+  it("is what distill does for the enabled ecosystems", () => {
+    expect(distill(both)).toEqual(distillFor(both, ENABLED_ECOSYSTEMS));
+  });
+  it("is safe to hand to map, which passes an index as a second argument", () => {
+    // The reason `distill` takes one argument: live.ts passes it to flatMap.
+    expect([both].flatMap(distill).map((r) => r.ecosystem).sort()).toEqual(["npm", "pypi"]);
   });
 });
 

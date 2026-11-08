@@ -1,18 +1,30 @@
 /**
- * One-off full load of the advisory index. Runs on a laptop, not on Workers.
+ * Loads the advisory index. Runs on a laptop, not on Workers.
  *
- *   npm run bootstrap -- download
- *   npm run bootstrap -- generate [--limit N] [--out DIR]
- *   npm run bootstrap -- load --local|--remote [--dir DIR]
+ *   npm run bootstrap -- download [--ecosystem E]
+ *   npm run bootstrap -- census [--ecosystem E] [--json]
+ *   npm run bootstrap -- generate [--ecosystem E] [--limit N] [--out DIR]
+ *   npm run bootstrap -- load --local|--remote [--ecosystem E] [--dir DIR] [--force]
  *
- * `generate` is deterministic and uses the same distill() path as the refresh Workflow.
- * `load` is for a fresh database: it applies every migration in migrations/, then the data. It is resumable:
+ * With no --ecosystem every enabled ecosystem is handled, which is how a fresh database is built: `load` then
+ * applies every migration in migrations/, then the data. With --ecosystem E (an id such as `pypi`, or OSV's name
+ * for it) only that one is handled, and it may be one that is defined but not yet enabled: `load` is then data
+ * only, adds to a database that already exists, and refuses when that ecosystem already has sync state unless
+ * --force is given. Each --ecosystem run uses its own directory (out-<id>) and its own checkpoint.
+ *
+ * `census` reports, before anything is loaded, what a feed would do to the ecosystem's handling: versions the
+ * comparator cannot read, names merged by normalisation, names too long for a KV key, records that would abort a
+ * batch. Review it before `load`.
+ *
+ * `generate` is deterministic and uses the same distill() path as the refresh Workflow. `load` is resumable:
  * finished steps are recorded in <dir>/checkpoint.<local|remote>.json.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { ECOSYSTEMS as ECOSYSTEM_SPECS, ENABLED_ECOSYSTEMS, distill, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
+import { distillFor, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
+import { assertGeneratedFor, defaultOutName, parseSyncStateIds, selectEcosystems } from "./lib/bootstrap-select.js";
+import { Census, formatCensus } from "./lib/census.js";
 import { loadDeployEnv } from "./lib/deploy-env.js";
 import { listMigrations } from "./lib/migrations.js";
 import { advisoryInsert, chunk, syncStateInsert } from "./lib/sql.js";
@@ -20,7 +32,10 @@ import { forEachJsonEntry, writeLines } from "./lib/zip.js";
 
 const DATA = resolve("scripts/data");
 const BASE = "https://osv-vulnerabilities.storage.googleapis.com";
-const ECOSYSTEMS = ENABLED_ECOSYSTEMS.map((id) => ({ osv: ECOSYSTEM_SPECS[id].osvName, ours: id }));
+
+// A flag given without a value is an error, never "all": see selectEcosystems.
+const requestedEcosystem = process.argv.includes("--ecosystem") ? (process.argv[process.argv.indexOf("--ecosystem") + 1] ?? "") : undefined;
+const { ecosystems: ECOSYSTEMS, explicit: SINGLE } = selectEcosystems(requestedEcosystem);
 const SQL_ROWS_PER_FILE = 10_000;
 const KV_KEYS_PER_FILE = 10_000;
 const CWE_FAMILY = ["CWE-506", "CWE-507", "CWE-510", "CWE-511", "CWE-912"];
@@ -50,7 +65,7 @@ function download(): void {
 }
 
 async function generate(): Promise<void> {
-  const out = resolve(arg("out") ?? join(DATA, "out"));
+  const out = resolve(arg("out") ?? join(DATA, defaultOutName(SINGLE, ECOSYSTEMS)));
   const limit = arg("limit") ? Number(arg("limit")) : Infinity;
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, "sql"), { recursive: true });
@@ -86,7 +101,7 @@ async function generate(): Promise<void> {
         }
         seen++;
         if (!newest[ours] || record.modified > newest[ours]) newest[ours] = record.modified;
-        const advisories = distill(record);
+        const advisories = distillFor(record, ECOSYSTEMS.map((e) => e.ours));
         if (advisories.length === 0) skipped++;
         for (const advisory of advisories) {
           rows.set(`${advisory.ecosystem}|${advisory.osvId}|${advisory.packageName}`, advisory);
@@ -144,6 +159,7 @@ async function generate(): Promise<void> {
   }
   const stats = {
     generatedAt: syncedAt,
+    ecosystems: ECOSYSTEMS.map((e) => e.ours),
     recordCount,
     newest,
     advisoryRows: all.length,
@@ -158,15 +174,34 @@ async function generate(): Promise<void> {
   console.log(JSON.stringify(stats, null, 2));
 }
 
+async function census(): Promise<void> {
+  const reports = [];
+  for (const { osv, ours } of ECOSYSTEMS) {
+    const zipPath = join(DATA, `${osv}.zip`);
+    if (!existsSync(zipPath)) throw new Error(`${zipPath} missing — run: npm run bootstrap -- download${SINGLE ? ` --ecosystem ${ours}` : ""}`);
+    const counter = new Census(ours);
+    await forEachJsonEntry(zipPath, (_name, json) => {
+      try {
+        counter.add(JSON.parse(json));
+      } catch {
+        counter.add(null);
+      }
+    });
+    reports.push(counter.report());
+  }
+  console.log(flag("json") ? JSON.stringify(reports, null, 2) : reports.map(formatCensus).join("\n\n"));
+}
+
 interface Checkpoint {
   done: string[];
 }
 
 function load(): void {
-  const dir = resolve(arg("dir") ?? join(DATA, "out"));
+  const dir = resolve(arg("dir") ?? join(DATA, defaultOutName(SINGLE, ECOSYSTEMS)));
   const remote = flag("remote");
   if (remote === flag("local")) throw new Error("Pass exactly one of --local or --remote");
   if (!existsSync(join(dir, "stats.json"))) throw new Error(`${dir} has no generated output — run generate first`);
+  assertGeneratedFor((JSON.parse(readFileSync(join(dir, "stats.json"), "utf8")) as { ecosystems?: unknown }).ecosystems, ECOSYSTEMS);
 
   const env = loadDeployEnv(["PKGGUARD_ACCOUNT_ID", "PKGGUARD_D1_ID", "PKGGUARD_KV_ID"]);
   const configPath = join(dir, "wrangler.bootstrap.jsonc");
@@ -206,11 +241,22 @@ function load(): void {
   delete process.env["CLOUDFLARE_API_TOKEN"];
   const wrangler = (args: string[]): void => run("npx", ["wrangler", ...args, "-c", configPath, ...target]);
 
-  // Every migration, in order: the Workers expect the whole schema, and a missing table or column only shows up as a
-  // background write that fails silently.
-  const migrations = resolve("migrations");
-  for (const file of listMigrations(migrations)) {
-    step(`migration:${file}`, () => wrangler(["d1", "execute", "pkgguard-db", "--file", join(migrations, file)]));
+  if (SINGLE) {
+    // Adding one ecosystem to a database that exists: no migrations, and no loading it twice by accident.
+    const probe = spawnSync("npx", ["wrangler", "d1", "execute", "pkgguard-db", "--command", "SELECT ecosystem FROM sync_state", "--json", "-c", configPath, ...target], { encoding: "utf8" });
+    if (probe.status !== 0) throw new Error(`could not read sync_state to check the ecosystem is not already loaded: ${probe.stderr.trim().slice(0, 300)}`);
+    const present = parseSyncStateIds(probe.stdout);
+    const id = ECOSYSTEMS[0]?.ours;
+    if (id !== undefined && present.includes(id) && !flag("force")) {
+      throw new Error(`${id} already has sync state, so it is already loaded. Pass --force to load it again.`);
+    }
+  } else {
+    // Every migration, in order: the Workers expect the whole schema, and a missing table or column only shows up as a
+    // background write that fails silently.
+    const migrations = resolve("migrations");
+    for (const file of listMigrations(migrations)) {
+      step(`migration:${file}`, () => wrangler(["d1", "execute", "pkgguard-db", "--file", join(migrations, file)]));
+    }
   }
   for (const file of readdirSync(join(dir, "sql")).sort()) {
     step(`sql:${file}`, () => wrangler(["d1", "execute", "pkgguard-db", "--file", join(dir, "sql", file), "-y"]));
@@ -223,9 +269,10 @@ function load(): void {
 
 const command = process.argv[2];
 if (command === "download") download();
+else if (command === "census") await census();
 else if (command === "generate") await generate();
 else if (command === "load") load();
 else {
-  console.error("usage: bootstrap <download|generate|load>");
+  console.error("usage: bootstrap <download|census|generate|load> [--ecosystem E]");
   process.exit(2);
 }
