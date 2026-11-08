@@ -27,7 +27,7 @@ Everything marked *measured* was taken from the live OSV feeds and registries on
 | Phase | Content | New malware coverage |
 |---|---|---:|
 | 0 | Ecosystem registry refactor, plus the tooling the later phases depend on. No new ecosystem, no behaviour change. | 0 |
-| 1 | **Cargo**: the pilot, on a feed where a mistake blocks almost nothing. Also settles the Gateway classification question. | 28 |
+| 1 | **Cargo**: the pilot, on a feed where a mistake blocks almost nothing. Also settles the Gateway classification question. | 31 |
 | 2a | **RubyGems**: the largest malware feed of the four. | 4,311 |
 | 2b | **NuGet**: the hardest comparator of the four. | 782 |
 | 3 | **Go**: mostly a vulnerability-logging feature. | 21 |
@@ -48,14 +48,14 @@ Measured. "Malware" applies the repository's classifier: the `MAL-` ID prefix **
 | PyPI *(shipped)* | 26,816 | 36 MB | n/a | n/a | 12,000 | |
 | RubyGems | 5,477 | 5.0 MB | 4,750 | 4,311 | 4,311 | Blocking and logging |
 | NuGet | 1,971 | 2.6 MB | 1,464 | 782 | 782 | Blocking and logging |
-| crates.io | 3,055 | 3.6 MB | 1,711 | 28 | 21 | Mostly logging (see below) |
+| crates.io | 3,055 | 3.6 MB | 1,705 | 31 | 21 | Mostly logging (see below) |
 | Go | 9,914 | 12.2 MB | 1,673 | 21 | 20 | Mostly logging |
 
 - **Volume is a non-issue.** The four add about 23 MB and about 20,400 records to roughly 246 MB and 258,000. About 9,600 more KV keys; no schema change (`ecosystem` is already `TEXT`).
 - **The blocking value is concentrated in RubyGems and NuGet.** Cargo and Go are, in practice, vulnerability-logging features, which PkgGuard does by design (CVEs are logged, never blocked).
-- **Cargo's malware records describe packages crates.io has already removed.** All seven records that only the CWE rule finds (`GHSA-6v2j-vr4h-f632` and six others) read "was removed from crates.io for malicious code". Blocking them is of little use against the public registry, and of real use only against a mirror or cache that still serves them.
-- **Most of these malware records describe packages the registry has already removed.** *Measured* with metadata requests only (nothing downloaded): none of Cargo's 28 and none of Go's 21 can still be downloaded, and none of a random 80 each from RubyGems and NuGet. A public-registry block therefore matters only in the window between an OSV record appearing and the registry removing the package; that window was not measured. The blocking value is larger against **mirrors and caches** (Artifactory, Nexus and similar), which Gateway classifies by URL shape and which can keep serving a package the registry has dropped. Weigh the malware counts above with this in mind.
-- **The CWE rule earns its keep again.** Seven of Cargo's 28 would be missed by a `MAL-` prefix check. This is the same lesson as `event-stream`.
+- **Almost all of Cargo's malware describes crates crates.io has already removed, but not all.** *Measured at the version level* (the registry index and the download endpoint, nothing downloaded): of the 31 malware rows, 27 name crates that are gone from the index, 3 are present with no affected version downloadable, and **1 still has a downloadable affected version: `append-only-vec` 0.1.9** (`MAL-2026-14333`, a release of a legitimate crate that gained a malicious dependency). That one is a real, live block target. Several records, such as `arrayref` 0.3.10, `internment` 0.8.7 and `append-only-vec` 0.1.9, are for a **single compromised version of a legitimate crate**; they list that version only, so the crate's other versions are unaffected.
+- **Most of these malware records describe packages the registry has already removed.** *Measured* with metadata requests only (nothing downloaded): of Cargo's 31, one still has a downloadable affected version (see below); none of Go's 21 can still be downloaded, and none of a random 80 each from RubyGems and NuGet. A public-registry block therefore matters only in the window between an OSV record appearing and the registry removing the package; that window was not measured. The blocking value is larger against **mirrors and caches** (Artifactory, Nexus and similar), which Gateway classifies by URL shape and which can keep serving a package the registry has dropped. Weigh the malware counts above with this in mind.
+- **The classifier earns its keep again.** Ten of Cargo's 31 would be missed by a check on the record's own `MAL-` id: seven are found by the CWE rule alone (`GHSA-6v2j-vr4h-f632` and six others) and three by a `MAL-` alias (`rustdecimal`, twice, and `replit_ruspty`). This is the same lesson as `event-stream`.
 
 ## Maven: out of scope
 
@@ -244,7 +244,7 @@ Where it differs from the plan above:
 
 ### Phase 1: Cargo
 
-**Why first.** Its feed has 28 malware records, all for already-removed crates, and its comparator is free. It exercises the whole new pipeline (registry, parser, bootstrap, rule widening, live client test) at the lowest possible blast radius.
+**Why first.** Its feed has 31 malware records, almost all for crates that are already gone, and its comparator is free. It exercises the whole new pipeline (registry, parser, bootstrap, rule widening, live client test) at the lowest possible blast radius.
 
 **Spike, before any code: does Gateway classify real `cargo` traffic?** On a test device behind Gateway with TLS decryption on the crates hosts:
 
@@ -415,7 +415,7 @@ Use fetch-only commands and never build, install or run what was fetched: `cargo
 
 ### Canary, not malware
 
-Because the malware is gone from the registries (see [What each ecosystem buys](#what-each-ecosystem-buys)), the live block test uses a **canary**: a small, harmless, popular package placed under a **block override** through the admin API. It exercises the whole path: Gateway, the Forward rule, the Worker, the decision, the block response and what the client prints. Real malware records are covered separately by looking up a pinned fixture's package and affected version in the index, which needs no download.
+Because most of the malware is gone from the registries (see [What each ecosystem buys](#what-each-ecosystem-buys)), the live block test usually uses a **canary**. Cargo is the exception today: `append-only-vec` 0.1.9 is a real malicious version that is still downloadable, so its block test can use the real thing (one byte requested, nothing built). Otherwise, a **canary**: a small, harmless, popular package placed under a **block override** through the admin API. It exercises the whole path: Gateway, the Forward rule, the Worker, the decision, the block response and what the client prints. Real malware records are covered separately by looking up a pinned fixture's package and affected version in the index, which needs no download.
 
 For the flag test, use a real, still-downloadable package with a known CVE, chosen by looking it up in the index first.
 
@@ -497,7 +497,7 @@ All figures are from 2026-11-07 and can be reproduced; Phase 0's `bootstrap cens
 - **Gateway classification and ecosystem strings:** for Cargo, a temporary block rule scoped to one identity and one package, deleted afterwards with the rule list diffed against a snapshot; for the strings, creating a *disabled* rule per candidate value and deleting it at once, since the API validates `pkg.ecosystem`.
 - **OSV ecosystem strings:** a package query to `api.osv.dev` per ecosystem, with an invalid ecosystem as the negative control (it returns `invalid ecosystem`).
 - **Registry URL behaviour:** `HEAD` requests to the public registries for the shapes above, including wrong-case and escaped variants.
-- **Whether malware is still downloadable:** for each malware record, a metadata request only (the crates.io sparse index, the RubyGems versions API, the NuGet flat-container index, the Go proxy version list). All 28 Cargo and 21 Go records, and a random 80 each for RubyGems and NuGet. No package was downloaded.
+- **Whether malware is still downloadable:** for each malware record, a metadata request only (the crates.io sparse index, the RubyGems versions API, the NuGet flat-container index, the Go proxy version list). Cargo at the version level (the index's version lines, then a `HEAD` of the download URL for each affected, unyanked version), all 21 Go records, and a random 80 each for RubyGems and NuGet. No package was downloaded.
 - **The Go and PyPI mis-parse:** the existing `parsePackageUrl` run against Go proxy URLs.
 - **Cloudflare's classifier and version standards:** the [Package registry security](https://developers.cloudflare.com/cloudflare-one/traffic-controls/http-policies/package-registry-security/) documentation, which lists the URL shape, namespace meaning and versioning standard for all seven ecosystems it detects.
 - **Index and platform suffixes:** the RubyGems compact index, `https://index.rubygems.org/versions`.
