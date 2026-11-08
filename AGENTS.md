@@ -27,7 +27,10 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 - Never export `CLOUDFLARE_API_TOKEN`. Wrangler reserves it and will abandon its OAuth session.
 - `workers_dev` and `preview_urls` stay `false` on the filter Worker.
 - `ENFORCE` blocks only when it is exactly the string `"true"`. With any other value the filter is observe-only, and a would-be block is recorded as `flagged`, never `blocked`. The committed template stays `"false"`, so a fresh checkout never blocks; the live value is `PKGGUARD_ENFORCE` in `.deploy.env`, applied by the config generator (`applyEnforce`), so a redeploy cannot silently switch it back. Anything but exactly `true` or `false` is an error, and every deploy prints the mode it wrote. Do not edit `ENFORCE` in `wrangler.jsonc`.
-- `Decision.block` is policy; whether a download is stopped is `block && ENFORCE`. Keep those two separate.
+- `OBSERVE_ONLY` is a comma-separated list of ecosystem ids that never block, whatever `ENFORCE` says; a would-be block there is recorded `flagged`. A new ecosystem starts in it. It comes from `PKGGUARD_OBSERVE_ONLY` through `applyObserveOnly`, which refuses an unknown id (a typo must never mean "block"); the Worker ignores unknown ids. Do not edit it in `wrangler.jsonc`.
+- `Decision.block` is policy; whether a download is stopped is `block && enforces(ecosystem)`, where `enforces` is `ENFORCE` and not observe-only for that ecosystem. Keep those separate.
+- An ecosystem is a registry entry, never a branch. `ECOSYSTEM_IDS`, `ENABLED_ECOSYSTEMS` and the labels live in `packages/core/src/ecosystem-ids.ts`, which imports nothing, so the dashboard can use it without the comparators (import it as `@pkgguard/core/ecosystems`); everything else about an ecosystem is its spec in `packages/core/src/ecosystems/`. Never write `ecosystem === "pypi" ? … : …`: adding an id must fail to compile until it has a spec, a label and a fixture in `ecosystems.test.ts`. Defined is not enabled: load an ecosystem's data (`bootstrap … --ecosystem`), then enable it, then widen the Forward rule.
+- `distill(record)` takes one argument because `live.ts` passes it to `flatMap`, which would hand it an index. Use `distillFor(record, ecosystems)` to choose. SQL that filters by ecosystem uses `enabledEcosystemSqlList()`: a literal list, because D1 allows 100 bound parameters and those queries already bind about 90.
 - The live OSV lookup runs only on an index miss, and an incomplete answer (pagination, malformed records) is never cached.
 - Resolve `context.identity()` before returning from `handle`. The context's RPC stubs are not guaranteed to outlive the call, so it cannot be deferred into `waitUntil`.
 - Call the global `fetch` through a wrapper, never as a stored property: workerd throws Illegal invocation otherwise.
@@ -45,22 +48,25 @@ PkgGuard enforces OSV.dev supply-chain data on package downloads through a Cloud
 | `npm test` | Full test suite — never filter |
 | `npm run test:coverage` | Same, with v8 coverage |
 | `npm run typecheck` | `tsc --noEmit` over `packages/core`, `scripts` and `workers/filter` |
-| `npm run bootstrap -- download` | Fetch the npm and PyPI OSV zips into `scripts/data/` (gitignored) |
-| `npm run bootstrap -- generate [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files |
-| `npm run bootstrap -- load --local\|--remote [--dir DIR]` | For a **fresh** database: apply every migration in `migrations/` in order (numbering must have no gap), then load. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
+| `npm run bootstrap -- download [--ecosystem E]` | Fetch the OSV zips into `scripts/data/` (gitignored): every enabled ecosystem, or the one named (by id or OSV name, and it may be defined but not yet enabled) |
+| `npm run bootstrap -- census [--ecosystem E] [--json]` | Before loading: unreadable range boundaries and listed versions, names merged by normalisation, over-long KV keys, records that would abort a batch, malware by prefix against CWE rule. Review it. |
+| `npm run bootstrap -- generate [--ecosystem E] [--limit N] [--out DIR]` | Distill the zips into SQL chunks and KV bulk files. `--ecosystem` writes to `out-<id>`, never over the full index. |
+| `npm run bootstrap -- load --local\|--remote [--ecosystem E] [--dir DIR] [--force]` | Without `--ecosystem`, for a **fresh** database: apply every migration in `migrations/` in order (numbering must have no gap), then load. With it: data only, into a database that exists; refuses an ecosystem that already has sync state unless `--force`, and a directory generated for other ecosystems. Resumable via `<dir>/checkpoint.*.json`. Test with `--limit` and `--local` first. |
 | `npm run deploy:config:filter` | Generate `workers/filter/wrangler.local.jsonc` from the template and `.deploy.env`. Fails on any placeholder. |
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
 | `wrangler d1 execute pkgguard-db --remote -c workers/filter/wrangler.local.jsonc --file migrations/<n>.sql` | Apply a migration. They are not applied automatically. Record `wrangler d1 time-travel info pkgguard-db` first. |
 | `npm run build:admin` | Build the dashboard into `workers/admin/dist` (gitignored) |
 | `npm run deploy:admin` | Build the dashboard, generate the admin config, then `wrangler deploy`. Always builds first. |
-| `npm run gateway:rule -- status\|create\|enable\|disable\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
+| `npm run gateway:rule -- status\|create\|enable\|disable\|sync\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. `sync` writes the desired rule (traffic follows the enabled ecosystems), printing each field it changes, and never changes whether the rule is enabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
 | `terraform -chdir=terraform plan -out=tfplan` | Access apps, policies and service token. Never apply without a reviewed plan. |
 
 ## Layout
 
 ```
 packages/core/            pure TS, no Workers APIs
-  src/normalize.ts          name normalization + KV key
+  src/ecosystem-ids.ts      ids, enabled list, labels: data only, imports nothing
+  src/ecosystems/           one spec per ecosystem + the registry
+  src/normalize.ts          name normalization + KV key, through the registry
   src/parse/                registry URL -> {ecosystem, namespace, name, version}
   src/version/              SemVer (npm) and PEP 440 (PyPI) comparison
   src/osv/                  classify, match, distill, KV entry + evaluate

@@ -38,7 +38,7 @@ flowchart LR
 | `pkgguard-admin` | Dashboard, REST API, the refresh Workflow and its crons. Behind Cloudflare Access. |
 | D1 | Source of truth: advisories, detections, overrides, refresh history, audit log. Powers the dashboard. |
 | KV | A flattened `ecosystem:name` index for fast reads on the download path, derived from D1. |
-| `packages/core` | Pure TypeScript with no Workers APIs: URL parsers, SemVer and PEP 440 comparison, OSV classification and range matching. Shared by both Workers and the bootstrap script. |
+| `packages/core` | Pure TypeScript with no Workers APIs: one registry entry per ecosystem (URL parser, version ordering, name rules), OSV classification and range matching. Shared by both Workers and the bootstrap script. |
 
 ### What gets blocked
 
@@ -101,9 +101,12 @@ After applying, put the `admin_aud` output in `PKGGUARD_ACCESS_AUD`.
 
 ```bash
 npm run bootstrap -- download
+npm run bootstrap -- census     # review what the feed would do before loading it
 npm run bootstrap -- generate
 npm run bootstrap -- load --remote
 ```
+
+`census` reports, for each ecosystem, the range boundaries and listed versions the comparator cannot read, names merged by normalisation, names too long for a KV key and records that would abort a batch. An unreadable range boundary leaves its range inert, so look at those; an unreadable listed version still matches the identical string. Add `--ecosystem <id>` to any of these to work on one ecosystem.
 
 **4. Deploy both Workers.** The filter starts **observe-only**: it records what it would block and blocks nothing.
 
@@ -137,10 +140,12 @@ npm run gateway:rule -- enable
 | **Turn it off, fast** | `npm run gateway:rule -- disable`. It applies in a few seconds, and in testing malware downloaded normally within twelve. Rehearse it before you rely on it. |
 | Turn it back on | `npm run gateway:rule -- enable` |
 | Check the rule | `npm run gateway:rule -- status` reports the rule and any drift from the configured scope |
+| Bring the rule up to date | `npm run gateway:rule -- sync` writes the configured scope and ecosystems over the live rule, prints each field it changes, and leaves it enabled or disabled as it was |
 | Block or allow a package now | The dashboard's **Overrides** panel. An allow beats a block, and both beat OSV. A change usually reaches the filter within seconds; KV propagation can take up to a minute. |
 | Find what a developer hit | Paste the reference into the dashboard's **Reference** box |
 | Refresh the index | Daily at 04:00 UTC, monthly at 03:00 UTC, or the dashboard's refresh button. The monthly and daily runs are the same idempotent delta. |
 | Stop enforcing without turning it off | Set `PKGGUARD_ENFORCE=false` and redeploy the filter: detections continue, nothing is blocked |
+| Watch one ecosystem without blocking it | Set `PKGGUARD_OBSERVE_ONLY=<id>` (for example `pypi`) in `.deploy.env` and redeploy the filter: that ecosystem is recorded as flagged and never blocked, while the others still enforce. An unknown id fails the deploy |
 
 Before **deleting** the filter Worker, delete or repoint the Gateway rule first. Deleting the Worker does not disable the rule, and matching requests then return `500`.
 
