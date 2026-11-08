@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generate } from "../generate-deploy-config.js";
-import { ENFORCE_ENV, FIELD_NAMES, WORKERS, applyEnforce, enforcementOf, field, renderConfig, validate, type FieldName } from "../lib/deploy-config.js";
+import { ENFORCE_ENV, FIELD_NAMES, OBSERVE_ONLY_ENV, WORKERS, applyEnforce, applyObserveOnly, enforcementOf, field, observeOnlyOf, renderConfig, validate, type FieldName } from "../lib/deploy-config.js";
 
 const GOOD = {
   ACCOUNT_ID: "a".repeat(32),
@@ -213,6 +213,64 @@ describe("generate (filesystem)", () => {
       generate("filter", root);
       expect(readFileSync(join(root, "workers/filter/wrangler.jsonc"), "utf8")).toBe(filterTemplate());
     });
+  });
+
+  describe("observe-only ecosystems", () => {
+    const observeOnly = (target: string): string => /"OBSERVE_ONLY":\s*"([^"]*)"/.exec(readFileSync(target, "utf8"))?.[1] ?? "missing";
+    afterEach(() => delete process.env[OBSERVE_ONLY_ENV]);
+
+    it("is empty when nothing is set, so no ecosystem is held back by surprise", () => {
+      writeEnv(goodEnv());
+      expect(observeOnly(generate("filter", root))).toBe("");
+    });
+    it("is written from .deploy.env, in order, without repeats", () => {
+      writeEnv([...goodEnv(), `${OBSERVE_ONLY_ENV}=pypi, npm,pypi`]);
+      expect(observeOnly(generate("filter", root))).toBe("pypi,npm");
+    });
+    it("is read from the environment first, then the file", () => {
+      writeEnv([...goodEnv(), `${OBSERVE_ONLY_ENV}=npm`]);
+      process.env[OBSERVE_ONLY_ENV] = "pypi";
+      expect(observeOnly(generate("filter", root))).toBe("pypi");
+    });
+    it("treats an empty value as none", () => {
+      writeEnv([...goodEnv(), `${OBSERVE_ONLY_ENV}=`]);
+      expect(observeOnly(generate("filter", root))).toBe("");
+    });
+    it.each(["pipy", "npm,pipy", "npm,", ",npm", "NPM", "all", "npm pypi", "*"])("refuses %j, because a typo must never mean blocking, and writes nothing new", (bad) => {
+      writeEnv(goodEnv());
+      const target = generate("filter", root);
+      const before = readFileSync(target, "utf8");
+      writeEnv([...goodEnv(), `${OBSERVE_ONLY_ENV}="${bad}"`]);
+      expect(() => generate("filter", root)).toThrow(/comma-separated list of ecosystem ids/);
+      expect(readFileSync(target, "utf8")).toBe(before);
+    });
+    it("is a filter setting only: the admin template has none, and the generator applies it to the filter alone", () => {
+      expect(readFileSync(join(REPO_ROOT, "workers/admin/wrangler.jsonc"), "utf8")).not.toContain("OBSERVE_ONLY");
+      expect(filterTemplate().match(/"OBSERVE_ONLY": ""/g)).toHaveLength(1);
+    });
+  });
+});
+
+describe("applyObserveOnly and observeOnlyOf", () => {
+  const template = '{ "vars": { "OBSERVE_ONLY": "" } }';
+  it("leaves the text alone when unset, empty or blank", () => {
+    for (const value of [undefined, "", "   "]) expect(applyObserveOnly(template, value)).toBe(template);
+  });
+  it("replaces exactly the setting", () => {
+    expect(applyObserveOnly(template, "pypi")).toBe('{ "vars": { "OBSERVE_ONLY": "pypi" } }');
+    expect(applyObserveOnly(template, "npm,pypi")).toBe('{ "vars": { "OBSERVE_ONLY": "npm,pypi" } }');
+  });
+  it("fails on template drift: no setting, or two", () => {
+    expect(() => applyObserveOnly("{}", "npm")).toThrow(/Template drift/);
+    expect(() => applyObserveOnly(`${template}${template}`, "npm")).toThrow(/Template drift/);
+  });
+  it("names the valid ids when it refuses", () => {
+    expect(() => applyObserveOnly(template, "pipy")).toThrow(/npm, pypi/);
+  });
+  it("reports what a generated config will keep observing", () => {
+    expect(observeOnlyOf('"OBSERVE_ONLY": "npm, pypi"')).toEqual(["npm", "pypi"]);
+    expect(observeOnlyOf('"OBSERVE_ONLY": ""')).toEqual([]);
+    expect(observeOnlyOf("{}")).toEqual([]);
   });
 });
 

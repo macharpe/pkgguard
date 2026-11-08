@@ -51,6 +51,20 @@ function fromVerdict(verdict: Verdict, source: DetectionSource): Decision {
   return { block: summary.outcome === "blocked", verdict: summary.outcome, reason: summary.reason, osvIds: summary.osvIds, source };
 }
 
+/** How much a decision matters when one download has several possible readings: stop it, then flag it, then allow it, then admit we could not tell. */
+const SEVERITY: Record<DetectionVerdict, number> = { blocked: 3, flagged: 2, allowed: 1, error: 0 };
+
+/**
+ * The reading of a download that decides what happens, when a file name can be read more than one way: the most
+ * severe verdict, and the earliest reading on a tie. A reading that is not a real package costs a lookup and
+ * answers "allowed", so it cannot outvote the one that is. Needs at least one reading.
+ */
+export function mostSevere<T extends { decision: Decision }>(readings: readonly [T, ...T[]]): T {
+  let best = readings[0];
+  for (const reading of readings) if (SEVERITY[reading.decision.verdict] > SEVERITY[best.decision.verdict]) best = reading;
+  return best;
+}
+
 export const fullName = (pkg: ParsedPackage): string => (pkg.namespace ? `${pkg.namespace}/${pkg.name}` : pkg.name);
 
 /**

@@ -17,6 +17,7 @@
     "OSV_API_TIMEOUT_MS": "400",
     "NEGATIVE_CACHE_TTL_S": "3600",
     "ENFORCE": "false",
+    "OBSERVE_ONLY": "",
     "SUPPORT_CONTACT": "the PkgGuard space in Google Chat"
   }
 }

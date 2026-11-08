@@ -6,7 +6,7 @@ import { chmodSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadDeployEnv, loadOptionalDeployEnv } from "./lib/deploy-env.js";
-import { ENFORCE_ENV, FIELD_NAMES, WORKERS, applyEnforce, enforcementOf, field, renderConfig, type FieldName } from "./lib/deploy-config.js";
+import { ENFORCE_ENV, FIELD_NAMES, OBSERVE_ONLY_ENV, WORKERS, applyEnforce, applyObserveOnly, enforcementOf, field, observeOnlyOf, renderConfig, type FieldName } from "./lib/deploy-config.js";
 
 export function generate(worker: string, root = process.cwd(), envFile = join(root, ".deploy.env")): string {
   const expected = WORKERS[worker];
@@ -25,7 +25,10 @@ export function generate(worker: string, root = process.cwd(), envFile = join(ro
   }
 
   let rendered = renderConfig(readFileSync(templatePath, "utf8"), expected, values);
-  if (worker === "filter") rendered = applyEnforce(rendered, loadOptionalDeployEnv(ENFORCE_ENV, envFile));
+  if (worker === "filter") {
+    rendered = applyEnforce(rendered, loadOptionalDeployEnv(ENFORCE_ENV, envFile));
+    rendered = applyObserveOnly(rendered, loadOptionalDeployEnv(OBSERVE_ONLY_ENV, envFile));
+  }
 
   const target = join(dir, "wrangler.local.jsonc");
   const tmp = `${target}.${process.pid}.tmp`;
@@ -43,7 +46,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const worker = process.argv[2] ?? "";
   try {
     const target = generate(worker);
-    const mode = worker === "filter" ? ` (enforcement: ${enforcementOf(readFileSync(target, "utf8"))})` : "";
+    const written = worker === "filter" ? readFileSync(target, "utf8") : "";
+    const observing = observeOnlyOf(written);
+    const mode = worker === "filter" ? ` (enforcement: ${enforcementOf(written)}${observing.length > 0 ? `, observe-only: ${observing.join(", ")}` : ""})` : "";
     console.log(`wrote ${target}${mode}`);
   } catch (err) {
     console.error(`deploy config not generated:\n${(err as Error).message}\nSee .deploy.env.example.`);
