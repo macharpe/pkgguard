@@ -65,11 +65,17 @@ describe("Census: what a feed would do", () => {
     census.add({ id: "GHSA-bad2", modified: "2026-11-06T00:00:00Z", affected: [pkg("npm", "x", { ranges: "nope" })] });
     expect(census.report()).toMatchObject({ records: 2, malformed: 7, unreadable: 2 });
   });
-  it("tells malware found by the MAL- prefix from malware found only by the CWE rule", () => {
+  it("tells malware found by the MAL- id, by a MAL- alias, and by the CWE rule alone", () => {
     const census = new Census("npm");
     for (const name of ["MAL-2024-11183.json", "GHSA-mh6f-8j2x-4483.json", "GHSA-73qr-pfmq-6rp8.json", "GHSA-35jh-r3h4-6jhm.json"]) census.add(fixture(name));
     // solana (MAL-), event-stream and coa (GHSA, CWE-506); lodash is a vulnerability, not malware.
-    expect(census.report().malware).toEqual({ records: 3, byPrefix: 1, byCweOnly: 2 });
+    expect(census.report().malware).toEqual({ records: 3, byPrefix: 1, byAlias: 0, byCwe: 2 });
+  });
+  it("counts a record whose own id is not MAL- but whose alias is, apart from both", () => {
+    const census = new Census("npm");
+    census.add({ id: "GHSA-aaaa-bbbb-cccc", modified: "2026-11-06T00:00:00Z", aliases: ["MAL-2026-1"], affected: [pkg("npm", "evil", { versions: ["1.0.0"] })] });
+    census.add({ id: "GHSA-dddd-eeee-ffff", modified: "2026-11-06T00:00:00Z", aliases: ["CVE-2026-1"], affected: [pkg("npm", "fine", { versions: ["1.0.0"] })] });
+    expect(census.report().malware).toEqual({ records: 1, byPrefix: 0, byAlias: 1, byCwe: 0 });
   });
   it("reads every real fixture without a record it cannot distil", () => {
     const names = readdirSync(FIXTURES).filter((f) => /^(GHSA|MAL)-.*\.json$/.test(f));

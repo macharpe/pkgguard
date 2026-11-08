@@ -21,7 +21,8 @@ export interface CensusReport {
   /** Well-formed, but distilling them threw: the kind of record that aborts a batch. */
   unreadable: number;
   packages: number;
-  malware: { records: number; byPrefix: number; byCweOnly: number };
+  /** Distinct malware records, by the first route that catches each: its own id, an alias, or the CWE rule. */
+  malware: { records: number; byPrefix: number; byAlias: number; byCwe: number };
   /** The `introduced`, `fixed` and `last_affected` of every range. An unreadable one makes its range inert. */
   boundaries: { total: number; rejected: number; rejectedInMalware: number; examples: string[] };
   /** The explicit `versions` lists. An unreadable one still matches the identical string. */
@@ -40,6 +41,7 @@ export class Census {
   private readonly spellings = new Map<string, Set<string>>();
   private readonly malwareIds = new Set<string>();
   private readonly prefixed = new Set<string>();
+  private readonly aliased = new Set<string>();
   private readonly oversized = new Set<string>();
   private boundariesTotal = 0;
   private boundariesRejected = 0;
@@ -71,6 +73,7 @@ export class Census {
       if (row.kind === "malware") {
         this.malwareIds.add(record.id);
         if (record.id.startsWith("MAL-")) this.prefixed.add(record.id);
+        else if ((record.aliases ?? []).some((alias) => typeof alias === "string" && alias.startsWith("MAL-"))) this.aliased.add(record.id);
       }
       if (kvKey(this.ecosystem, row.packageName) === null) this.oversized.add(row.packageName);
     }
@@ -120,7 +123,12 @@ export class Census {
       malformed: this.malformed,
       unreadable: this.unreadable,
       packages: this.spellings.size,
-      malware: { records: this.malwareIds.size, byPrefix: this.prefixed.size, byCweOnly: this.malwareIds.size - this.prefixed.size },
+      malware: {
+        records: this.malwareIds.size,
+        byPrefix: this.prefixed.size,
+        byAlias: this.aliased.size,
+        byCwe: this.malwareIds.size - this.prefixed.size - this.aliased.size,
+      },
       boundaries: { total: this.boundariesTotal, rejected: this.boundariesRejected, rejectedInMalware: this.boundariesRejectedInMalware, examples: [...this.boundaryExamples] },
       listed: { total: this.listedTotal, rejected: this.listedRejected, examples: [...this.listedExamples] },
       merged: { names: merged.length, examples: merged.slice(0, 3).map((names) => [...names].sort()) },
@@ -154,7 +162,7 @@ export function findings(report: CensusReport): string[] {
 export function formatCensus(report: CensusReport): string {
   const lines = [
     `${report.ecosystem}`,
-    `  records ${report.records}   packages ${report.packages}   malware ${report.malware.records} (${report.malware.byPrefix} by MAL- prefix, ${report.malware.byCweOnly} by CWE rule only)`,
+    `  records ${report.records}   packages ${report.packages}   malware ${report.malware.records} (${report.malware.byPrefix} by MAL- id, ${report.malware.byAlias} by a MAL- alias, ${report.malware.byCwe} by the CWE rule)`,
     `  range boundaries ${report.boundaries.total}, unreadable ${report.boundaries.rejected}   listed versions ${report.listed.total}, unreadable ${report.listed.rejected}`,
   ];
   const found = findings(report);

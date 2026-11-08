@@ -16,11 +16,22 @@ describe("selectEcosystems", () => {
     expect(selectEcosystems(name)).toEqual({ ecosystems: [{ ours: "pypi", osv: "PyPI" }], explicit: true });
   });
   it("can name an ecosystem that is defined but not enabled, so its data can go in first", () => {
-    // Today every defined id is enabled; the property is that selection follows the defined list, not the enabled one.
+    // Selection follows the defined list, not the enabled one: that is what lets data be loaded before enabling.
     for (const id of ECOSYSTEM_IDS) expect(selectEcosystems(id).ecosystems[0]?.ours).toBe(id);
+    const notEnabled = ECOSYSTEM_IDS.filter((id) => !ENABLED_ECOSYSTEMS.includes(id));
+    expect(notEnabled.length).toBeGreaterThan(0);
+    for (const id of notEnabled) {
+      expect(selectEcosystems(id).explicit).toBe(true);
+      expect(selectEcosystems(undefined).ecosystems.map((e) => e.ours)).not.toContain(id);
+    }
   });
-  it.each([[""], ["NPM"], ["Pypi"], ["constructor"], ["__proto__"], ["crates.io"], [" npm"], ["npm,pypi"], ["all"]])("refuses %j, listing what is valid", (bad) => {
-    expect(() => selectEcosystems(bad)).toThrow(/--ecosystem must name one of: npm \(OSV: npm\), pypi \(OSV: PyPI\)/);
+  it("takes Cargo by its id or by OSV's name for it, though it is not enabled", () => {
+    expect(selectEcosystems("cargo")).toEqual({ ecosystems: [{ ours: "cargo", osv: "crates.io" }], explicit: true });
+    expect(selectEcosystems("crates.io")).toEqual({ ecosystems: [{ ours: "cargo", osv: "crates.io" }], explicit: true });
+    expect(defaultOutName(true, selectEcosystems("cargo").ecosystems)).toBe("out-cargo");
+  });
+  it.each([[""], ["NPM"], ["Pypi"], ["constructor"], ["__proto__"], ["crates"], ["Cargo"], [" npm"], ["npm,pypi"], ["all"]])("refuses %j, listing what is valid", (bad) => {
+    expect(() => selectEcosystems(bad)).toThrow(/--ecosystem must name one of: npm \(OSV: npm\), pypi \(OSV: PyPI\), cargo \(OSV: crates\.io\)/);
   });
   it("never reads a flag with no value as 'all'", () => {
     expect(() => selectEcosystems("")).toThrow();

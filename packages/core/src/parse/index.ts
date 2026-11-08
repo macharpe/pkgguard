@@ -1,11 +1,12 @@
 import { ENABLED_ECOSYSTEMS } from "../ecosystem-ids.js";
 import { ECOSYSTEMS } from "../ecosystems/index.js";
+import { parseCargoUrl } from "./cargo.js";
 import { parseNpmUrl } from "./npm.js";
 import { parsePypiUrl } from "./pypi.js";
 import type { ParsedPackage } from "./types.js";
 
 export type { ParsedPackage } from "./types.js";
-export { parseNpmUrl, parsePypiUrl };
+export { parseCargoUrl, parseNpmUrl, parsePypiUrl };
 
 /**
  * The packages a registry download URL could be, or none when it is not a recognised download. Never throws.

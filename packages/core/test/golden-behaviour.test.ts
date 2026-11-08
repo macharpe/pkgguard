@@ -14,7 +14,6 @@ import {
   overrideMessage,
   parsePackageUrl,
   toPurl,
-  type Ecosystem,
   type OsvRecord,
 } from "../src/index.js";
 
@@ -110,7 +109,7 @@ const VERSIONS = {
     "2!0.1", "1.0+local", "1.0+local.2", "v1.0", "1.0-1", "1.0_1", "1.0.0.0", "1.0.0.99999999999999999999",
     "99999999999999999999!1.0", " 1.0 ", "1.0.", "abc", "", "1.0A1", "1.0.RC1",
   ],
-} satisfies Record<Ecosystem, string[]>;
+} satisfies Record<"npm" | "pypi", string[]>;
 
 const SPECS = [
   { r: [[{ introduced: "0" }]], v: ["1.0.0"] },

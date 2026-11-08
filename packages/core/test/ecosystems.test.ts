@@ -33,8 +33,8 @@ import {
  * that was not wired up fails here rather than in production.
  */
 interface Fixture {
-  /** A real download URL and what it must parse to. */
-  download: { url: string; pkg: ParsedPackage };
+  /** Real download URLs and what each must parse to. More than one when the registry serves more than one shape. */
+  downloads: Array<{ url: string; pkg: ParsedPackage }>;
   /** URLs of this registry that are not package downloads. */
   notDownloads: string[];
   /** [raw, normalised] pairs: spellings of one name must collapse to the same string. */
@@ -55,10 +55,9 @@ const record = (osvName: string, name: string): OsvRecord => ({
 
 const FIXTURES: Record<Ecosystem, Fixture> = {
   npm: {
-    download: {
-      url: "https://registry.npmjs.org/@babel/core/-/core-7.24.0.tgz",
-      pkg: { ecosystem: "npm", namespace: "@babel", name: "core", version: "7.24.0" },
-    },
+    downloads: [
+      { url: "https://registry.npmjs.org/@babel/core/-/core-7.24.0.tgz", pkg: { ecosystem: "npm", namespace: "@babel", name: "core", version: "7.24.0" } },
+    ],
     notDownloads: ["https://registry.npmjs.org/@babel/core", "https://registry.npmjs.org/lodash/-/lodash-4.17.21.zip"],
     names: [["@Babel/Core", "@babel/core"], ["  LODASH ", "lodash"], ["event-stream", "event-stream"]],
     ordered: ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0", "1.0.1", "1.10.0", "2.0.0"],
@@ -68,10 +67,9 @@ const FIXTURES: Record<Ecosystem, Fixture> = {
     overrideRejects: ["", "..", "/x", "a//b", "a b", "@/x", "@scope/", "-x", "@scope/..", "Upper"],
   },
   pypi: {
-    download: {
-      url: "https://files.pythonhosted.org/packages/ab/cd/ef/Flask_Cors-4.0.0-py2.py3-none-any.whl",
-      pkg: { ecosystem: "pypi", namespace: null, name: "Flask_Cors", version: "4.0.0" },
-    },
+    downloads: [
+      { url: "https://files.pythonhosted.org/packages/ab/cd/ef/Flask_Cors-4.0.0-py2.py3-none-any.whl", pkg: { ecosystem: "pypi", namespace: null, name: "Flask_Cors", version: "4.0.0" } },
+    ],
     notDownloads: ["https://pypi.org/simple/flask-cors/", "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.gz.asc"],
     names: [["Foo.Bar__baz-Qux", "foo-bar-baz-qux"], ["Flask_Cors", "flask-cors"], ["requests", "requests"]],
     ordered: ["1.0.dev1", "1.0a1", "1.0rc1", "1.0", "1.0.post1", "1.1", "1!0.1"],
@@ -79,6 +77,20 @@ const FIXTURES: Record<Ecosystem, Fixture> = {
     osv: { record: record("PyPI", "Flask_Cors"), name: "flask-cors", namespace: null },
     overrideAccepts: ["requests", "flask-cors", "a1"],
     overrideRejects: ["", "..", "a/b", "a b", "foo_bar", "foo.bar", "UPPER"],
+  },
+  cargo: {
+    downloads: [
+      // What the cargo client requests, and the shape that redirects to: measured behind Gateway.
+      { url: "https://static.crates.io/crates/serde_json/1.0.100/download", pkg: { ecosystem: "cargo", namespace: null, name: "serde_json", version: "1.0.100" } },
+      { url: "https://static.crates.io/crates/serde_json/serde_json-1.0.100.crate", pkg: { ecosystem: "cargo", namespace: null, name: "serde_json", version: "1.0.100" } },
+    ],
+    notDownloads: ["https://index.crates.io/config.json", "https://index.crates.io/se/rd/serde_json", "https://static.crates.io/crates/serde_json", "https://crates.io/crates/serde_json"],
+    names: [["Serde_Json", "serde-json"], ["  TOKIO ", "tokio"], ["serde-json", "serde-json"]],
+    ordered: ["0.0.0-0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0", "1.0.1", "1.10.0", "2.0.0"],
+    unparseableVersion: "0.65",
+    osv: { record: record("crates.io", "Serde_Json"), name: "serde-json", namespace: null },
+    overrideAccepts: ["serde-json", "tokio", "a1"],
+    overrideRejects: ["", "..", "a/b", "a b", "-x", "Upper", "a_b", "a.b"],
   },
 };
 
@@ -115,6 +127,12 @@ describe("the registry's data", () => {
     expect(osv.size).toBe(ECOSYSTEM_IDS.length);
   });
 
+  it("uses the Gateway strings that were measured, not guessed", () => {
+    // Gateway's API refuses an unknown pkg.ecosystem, so these were learned by asking it. The ones still to come are
+    // "gem" for RubyGems and "golang" for Go (not "rubygems" and "go", which it refuses), and "nuget".
+    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo" });
+  });
+
   it("recognises ids and enabled ids, and nothing else", () => {
     for (const id of ECOSYSTEM_IDS) expect(isEcosystem(id)).toBe(true);
     for (const id of ENABLED_ECOSYSTEMS) expect(isEnabledEcosystem(id)).toBe(true);
@@ -134,10 +152,22 @@ describe.each(ECOSYSTEM_IDS)("ecosystem %s meets the whole contract", (id) => {
   const spec = ECOSYSTEMS[id];
   const f = FIXTURES[id];
 
-  it("parses its download URL, and the candidates agree with the single reading", () => {
-    expect(spec.parse(new URL(f.download.url))).toEqual([f.download.pkg]);
-    expect(parsePackageCandidates(f.download.url)).toEqual([f.download.pkg]);
-    expect(parsePackageUrl(f.download.url)).toEqual(f.download.pkg);
+  it("parses each shape of its download URL", () => {
+    for (const { url, pkg } of f.downloads) expect(spec.parse(new URL(url)), url).toEqual([pkg]);
+  });
+
+  it.runIf(ENABLED_ECOSYSTEMS.includes(id))("is recognised by the filter's entry points while it is enabled", () => {
+    for (const { url, pkg } of f.downloads) {
+      expect(parsePackageCandidates(url), url).toEqual([pkg]);
+      expect(parsePackageUrl(url), url).toEqual(pkg);
+    }
+  });
+
+  it.skipIf(ENABLED_ECOSYSTEMS.includes(id))("is invisible to the filter's entry points until it is enabled", () => {
+    for (const { url } of f.downloads) {
+      expect(parsePackageCandidates(url), url).toEqual([]);
+      expect(parsePackageUrl(url), url).toBeNull();
+    }
   });
 
   it("ignores URLs that are not its downloads", () => {
@@ -145,7 +175,7 @@ describe.each(ECOSYSTEM_IDS)("ecosystem %s meets the whole contract", (id) => {
   });
 
   it("writes a package URL of its own type", () => {
-    expect(toPurl(f.download.pkg)).toMatch(new RegExp(`^pkg:${spec.purlType}/`));
+    for (const { pkg } of f.downloads) expect(toPurl(pkg)).toMatch(new RegExp(`^pkg:${spec.purlType}/`));
   });
 
   it("collapses spellings of one name, and keys on the result", () => {
@@ -169,12 +199,13 @@ describe.each(ECOSYSTEM_IDS)("ecosystem %s meets the whole contract", (id) => {
   });
 
   it("is found by OSV's name for it, and queried under that name", () => {
-    expect(ecosystemFromOsvName(spec.osvName)).toBe(id);
+    expect(ecosystemFromOsvName(spec.osvName, ECOSYSTEM_IDS)).toBe(id);
+    expect(ecosystemFromOsvName(spec.osvName)).toBe(ENABLED_ECOSYSTEMS.includes(id) ? id : null);
     expect(osvQueryBody(id, "x").package.ecosystem).toBe(spec.osvName);
   });
 
   it("distils an OSV record into a row that survives the database and comes back equal", () => {
-    const rows = distill(f.osv.record);
+    const rows = distillFor(f.osv.record, [id]);
     expect(rows).toHaveLength(1);
     const row = rows[0]!;
     expect(row.ecosystem).toBe(id);
@@ -230,7 +261,7 @@ describe("ecosystem lookups by OSV name", () => {
 
 describe("no URL is read as two ecosystems", () => {
   const corpus = [
-    ...ECOSYSTEM_IDS.map((id) => FIXTURES[id].download.url),
+    ...ECOSYSTEM_IDS.flatMap((id) => FIXTURES[id].downloads.map((d) => d.url)),
     ...ECOSYSTEM_IDS.flatMap((id) => FIXTURES[id].notDownloads),
     "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
     "https://registry.npmjs.org/@babel%2fcore/-/core-7.24.0.tgz",
