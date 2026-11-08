@@ -1,6 +1,6 @@
 # PkgGuard
 
-Block malicious npm and PyPI packages at the network edge, using a live [OSV.dev](https://osv.dev) feed, without writing a policy per package.
+Block malicious npm, PyPI and Cargo packages at the network edge, using a live [OSV.dev](https://osv.dev) feed, without writing a policy per package.
 
 PkgGuard is two Cloudflare Workers behind a single Cloudflare Gateway rule. When a developer on an enrolled device downloads a package, Gateway hands the request to a Worker. The Worker checks the package against an index built from OSV and either lets the download through or stops it. Malware is blocked. Ordinary vulnerabilities are logged, because blocking every CVE would break most real builds.
 
@@ -34,7 +34,7 @@ flowchart LR
 
 | Component | Role |
 |---|---|
-| `pkgguard-filter` | Invoked by Gateway for every npm and PyPI download. Decides, records, and either blocks or continues. No public route. |
+| `pkgguard-filter` | Invoked by Gateway for every npm, PyPI and Cargo download. Decides, records, and either blocks or continues. No public route. |
 | `pkgguard-admin` | Dashboard, REST API, the refresh Workflow and its crons. Behind Cloudflare Access. |
 | D1 | Source of truth: advisories, detections, overrides, refresh history, audit log. Powers the dashboard. |
 | KV | A flattened `ecosystem:name` index for fast reads on the download path, derived from D1. |
@@ -48,12 +48,13 @@ The order of decisions is: an administrator's **allow** override, then a **block
 
 ### What a developer sees
 
-The client decides what is worth sending, and what actually reaches a terminal is limited. This was tested against real npm and pip behind Gateway.
+The client decides what is worth sending, and what actually reaches a terminal is limited. This was tested against real npm, pip and cargo behind Gateway.
 
 | Client | What the developer sees |
 |---|---|
 | **npm** | `E403`, with the reason, the advisory link, where to get help and a reference code on the error line |
 | **pip** | `403 Client Error: Forbidden`. Nothing in the response reaches pip's output, at any verbosity. The detail is in the Chat alert and the dashboard |
+| **cargo** | `failed to download from … got 403`, followed by the **whole response body**: the package, the reason, the advisory link and the reference. Nothing reaches the cache. The most informative of the three |
 | **curl** | A plain-text message with the same detail |
 | **Browser** | A self-contained page: no script, no external request, light and dark |
 
@@ -152,9 +153,10 @@ Before **deleting** the filter Worker, delete or repoint the Gateway rule first.
 ## Known limitations
 
 - **Identity scoping.** A device with no identity (no active Cloudflare One session, or proxy-endpoint mode) does not match an identity-scoped rule, so its downloads are not filtered.
-- **Two scopes, one audience.** The Forward rule's identity scope and your Do Not Inspect exemption for the registries are separate settings, and they must cover the same people. A user who is in the rule's scope but still on Do Not Inspect is **silently unfiltered**: the rule is enabled and in sync, malware downloads with no error, and nothing appears in the dashboard, so an empty dashboard looks like a clean one. Check each device's TLS issuer: `curl -sv https://registry.npmjs.org/ 2>&1 | grep issuer` must name Cloudflare, not the registry's own CA. Repeat for `pypi.org` and `files.pythonhosted.org`.
+- **Two scopes, one audience.** The Forward rule's identity scope and your Do Not Inspect exemption for the registries are separate settings, and they must cover the same people. A user who is in the rule's scope but still on Do Not Inspect is **silently unfiltered**: the rule is enabled and in sync, malware downloads with no error, and nothing appears in the dashboard, so an empty dashboard looks like a clean one. Check each device's TLS issuer: `curl -sv https://registry.npmjs.org/ 2>&1 | grep issuer` must name Cloudflare, not the registry's own CA. Repeat for `pypi.org`, `files.pythonhosted.org`, `static.crates.io` and `index.crates.io`.
 - **pip.** A blocked `pip` user sees only `403 Forbidden` (see above).
-- **Local caches bypass it.** PkgGuard decides on a download that crosses the network. A package already in pip's or npm's local cache installs without one, so it is neither checked nor recorded. A package blocked as malware is never cached, because the block stops the download; the gap is a package cached *before* it was flagged. Tested: `pip download` of a cached wheel and `npm install` of a cached package both produced no detection. `pip --no-cache-dir` forces a fresh download.
+- **Local caches bypass it.** PkgGuard decides on a download that crosses the network. A package already in pip's, npm's or cargo's local cache installs without one, so it is neither checked nor recorded. A package blocked as malware is never cached, because the block stops the download; the gap is a package cached *before* it was flagged. Tested: `pip download` of a cached wheel and `npm install` of a cached package both produced no detection. `pip --no-cache-dir` forces a fresh download.
+- **Cargo coverage is mostly vulnerability logging.** crates.io removes malicious crates quickly: when this was measured, of the 31 malware records in OSV, 27 named crates already gone, and one still had a downloadable malicious version. Several records are for a single compromised version of a legitimate crate and list that version only, so the crate's other versions are unaffected. The value is the vulnerability log, and a block against a mirror that still serves what the registry dropped.
 - **PyPI coverage is thinner than npm.** PyPI removes malicious packages quickly and most never get an OSV advisory. This is a property of the upstream data. PkgGuard supports PyPI, but it does not claim parity with npm.
 - **Coverage gaps in Gateway.** The Forward action does not run for `CONNECT` tunnels, WebSocket traffic or protocol upgrades, and it needs the registry host to be TLS-decrypted.
 - **Forward is a Beta feature**, and the Terraform provider does not yet support it, so the rule is managed through the API by `scripts/gateway-rule.ts`.

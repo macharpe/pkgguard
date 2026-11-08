@@ -1,6 +1,6 @@
 # Roadmap: RubyGems, Cargo, Go and NuGet
 
-Status: **Phase 0 is done and live; Phase 1 (Cargo) is next.** PkgGuard enforces npm and PyPI today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome).
+Status: **Phases 0 and 1 (Cargo) are done and live; Phase 2a (RubyGems) is next.** PkgGuard enforces npm and PyPI today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome) and [Phase 1 outcome](#phase-1-outcome).
 
 **Maven is deliberately out of scope**, for two measured reasons recorded in [Maven](#maven-out-of-scope). The decision can be revisited.
 
@@ -267,6 +267,25 @@ Had only the documented shape been classified while real cargo used the other, t
 | Census gate | The 12 rejected range boundaries must be reviewed by hand (see [Decisions needed](#decisions-needed)). |
 | Pinned fixtures | `GHSA-6v2j-vr4h-f632` (`finch_cli_rust`): malware found **only** by the CWE rule, the Cargo equivalent of `event-stream`. A `RUSTSEC-` record as the vulnerability negative control. |
 
+### Phase 1 outcome
+
+Cargo is live and enforcing, rolled out in the order this document gives, each step checked before the next.
+
+1. **Merged defined but not enabled** (`0779309`), then **data loaded** before enabling: 3,621 advisory rows (31 malware, 3,590 vulnerability) and 1,687 KV keys, with npm and PyPI verified unchanged and a D1 restore point taken first.
+2. **Enabled** (`ab745f5`) and deployed with `PKGGUARD_OBSERVE_ONLY=cargo` in `.deploy.env`, so a redeploy could not switch it to blocking. A manual refresh over three ecosystems completed: 26 records, 0 errors.
+3. **Rule widened** with `gateway-rule sync`, which changed only the traffic expression and left the rule enabled.
+4. **Observed**: a real malicious version (`append-only-vec` 0.1.9) was let through in both URL shapes and recorded `flagged` with a reference; a CVE-only crate was flagged and allowed; a clean crate passed through live OSV; a real `cargo fetch` worked.
+5. **Enforced**: the malicious version is blocked in both shapes; `cargo fetch` exits 101, prints PkgGuard's explanation and leaves nothing in the cache; the CVE-only and clean crates pass; other versions of the same crate are untouched. npm and PyPI were re-checked and still block.
+6. **Cache gap confirmed for cargo**: a second `cargo fetch` with the cache in place made no request (four `itoa` rows for four requests, not five).
+
+Where it differs from the plan:
+
+- **The spike used a temporary Gateway rule** instead of reading the activity log, and doubled as the way to learn the ecosystem strings.
+- **Cargo malware is not all gone** (see [What each ecosystem buys](#what-each-ecosystem-buys)), so the block test used a real malicious version, not a canary.
+- **Enabling broke the refresh tests until they seeded Cargo's sync state**, the ordering trap showing up in the fixtures; the golden snapshot changed in exactly one entry, reviewed.
+- **A flaw in the bootstrap's directory check was found and fixed**: output from before the stats recorded its ecosystems was taken to be the enabled set, which had just grown.
+- **Cargo advisories carry no severity string**, because RUSTSEC puts a CVSS vector at the top level instead of GHSA's `database_specific.severity`. Cosmetic; the dashboard shows none for Cargo.
+
 ### Phase 2a: RubyGems
 
 | Item | Design |
@@ -437,7 +456,7 @@ Fill this in as each phase runs, and move the conclusions into the demo notes an
 
 | Ecosystem | URL shape requested | Classified by Gateway | `PackageInfo.Ecosystem` | Trusts the certificate unaided | Client output on 403 | Falls through on 403 |
 |---|---|---|---|---|---|---|
-| Cargo | `static.crates.io/crates/{crate}/{version}/download` (the index's `dl` has no markers) | **Yes, both shapes** | `cargo` | **Yes** (Rust 1.99.1) | Gateway block: `failed to verify the checksum`; PkgGuard 403: *to observe* | n/a |
+| Cargo | `static.crates.io/crates/{crate}/{version}/download` (the index's `dl` has no markers) | **Yes, both shapes** | `cargo` | **Yes** (Rust 1.99.1) | Gateway block: `failed to verify the checksum`. **PkgGuard 403: cargo prints the whole response body** (`failed to download … got 403`, then the explanation, advisory link and reference) and caches nothing | n/a |
 | RubyGems | | | | | | n/a |
 | NuGet | | | | | | n/a |
 | Go | | | | | | |
@@ -462,7 +481,7 @@ Each phase is finished only when all of this is true for the ecosystem:
 | 1 | Go: match module paths case-sensitively | **Exact.** Go treats the case variants as different modules and OSV lists them separately; folding would merge distinct packages. A mismatched-case path would also fail a build, so exact matching leaves no practical bypass. |
 | 2 | RubyGems: fold `-` and `_` | **No.** 23 distinct gems differ only by that character. |
 | 3 | Cargo: fold `-` and `_` | **Yes**, together with case; crates.io treats them as one name. |
-| 4 | OSV-side range boundaries that are not valid SemVer (Cargo 10, Go 68; none in malware advisories) | Review each. Prefer coercing a clearly truncated version (`0.65` to `0.65.0`) on the OSV side only, with a test, over leaving the range inert. Never coerce the version of a package being downloaded. |
+| 4 | OSV-side range boundaries that are not valid SemVer (Cargo 10, Go 68; none in malware advisories) | **Cargo: left as they are** (decided in Phase 1: ten inert boundaries, none in malware). Go: review each. Prefer coercing a clearly truncated version (`0.65` to `0.65.0`) on the OSV side only, with a test, over leaving the range inert. Never coerce the version of a package being downloaded. |
 | 5 | RubyGems: platform in matching | **Ignore the platform.** An advisory applies to every build of a version. |
 | 6 | Per-ecosystem observe-only setting | **Yes**, as above. It lets each ecosystem collect real traffic before it can block anyone. |
 | 7 | Forward rule name | **Keep it stable**, or make `findRule` accept both names. Either way, the `traffic` expression is what changes. |
