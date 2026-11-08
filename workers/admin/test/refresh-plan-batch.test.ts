@@ -16,7 +16,8 @@ interface Routes {
 }
 const router = (routes: Routes, calls: string[] = []): FetchLike => async (url) => {
   calls.push(url);
-  const hit = routes[url];
+  // Cargo is enabled too, and most of these tests are about npm and PyPI: unless a test routes it, crates.io has nothing new.
+  const hit = routes[url] ?? (url === csvUrl("crates.io") ? csv() : undefined);
   if (hit === undefined) return new Response("", { status: 404 });
   return typeof hit === "function" ? hit() : hit.clone();
 };
@@ -24,7 +25,7 @@ const csv = (...lines: string[]) => new Response(lines.join("\n") + "\n");
 
 const seedState = async (npm: string, pypi: string) => {
   await env.DB.exec("DELETE FROM sync_state");
-  await env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 10, '2026-11-01T00:00:00Z'), ('pypi', ?, 20, '2026-11-01T00:00:00Z')").bind(npm, pypi).run();
+  await env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 10, '2026-11-01T00:00:00Z'), ('pypi', ?, 20, '2026-11-01T00:00:00Z'), ('cargo', ?, 30, '2026-11-01T00:00:00Z')").bind(npm, pypi, pypi).run();
 };
 const items = async (run = RUN) => (await env.DB.prepare("SELECT seq, ecosystem, osv_id, modified, status FROM refresh_items WHERE run_id = ? ORDER BY seq").bind(run).all<{ seq: number; ecosystem: string; osv_id: string; modified: string; status: string }>()).results;
 const state = async (eco: string) => env.DB.prepare("SELECT last_modified, record_count, last_synced_at FROM sync_state WHERE ecosystem = ?").bind(eco).first<{ last_modified: string; record_count: number; last_synced_at: string }>();

@@ -41,12 +41,17 @@ export function parseSyncStateIds(stdout: string): string[] {
 }
 
 /**
+ * What output written before the stats recorded its ecosystems contained: npm and PyPI, the only two that existed.
+ * It is a fixed list, not the enabled set, which grows: an old directory must never be taken for a newer, larger one.
+ */
+const LEGACY_OUTPUT: readonly string[] = ["npm", "pypi"];
+
+/**
  * A generated directory must be for the ecosystems being loaded. One written for a single ecosystem, loaded as a
  * fresh database, would leave the others silently missing; the reverse would load more than was asked for.
- * Output written before the stats recorded this is taken to be the full, enabled set.
  */
 export function assertGeneratedFor(recorded: unknown, wanted: readonly Selected[]): void {
-  const have = Array.isArray(recorded) ? recorded.map(String) : ENABLED_ECOSYSTEMS.map(String);
+  const have = Array.isArray(recorded) ? recorded.map(String) : [...LEGACY_OUTPUT];
   const want = wanted.map((entry) => entry.ours);
   if (have.length !== want.length || !want.every((id) => have.includes(id))) {
     throw new Error(`this directory was generated for [${have.join(", ")}], but this load is for [${want.join(", ")}]: generate again with the same --ecosystem`);

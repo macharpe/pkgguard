@@ -10,22 +10,25 @@ describe("selectEcosystems", () => {
     expect(ecosystems).toEqual([
       { ours: "npm", osv: "npm" },
       { ours: "pypi", osv: "PyPI" },
+      { ours: "cargo", osv: "crates.io" },
     ]);
   });
   it.each([["pypi"], ["PyPI"]])("takes one ecosystem by id or by OSV's name: %s", (name) => {
     expect(selectEcosystems(name)).toEqual({ ecosystems: [{ ours: "pypi", osv: "PyPI" }], explicit: true });
   });
-  it("can name an ecosystem that is defined but not enabled, so its data can go in first", () => {
-    // Selection follows the defined list, not the enabled one: that is what lets data be loaded before enabling.
+  it("can name any defined ecosystem", () => {
     for (const id of ECOSYSTEM_IDS) expect(selectEcosystems(id).ecosystems[0]?.ours).toBe(id);
-    const notEnabled = ECOSYSTEM_IDS.filter((id) => !ENABLED_ECOSYSTEMS.includes(id));
-    expect(notEnabled.length).toBeGreaterThan(0);
+  });
+  // Selection follows the defined list, not the enabled one: that is what lets data be loaded before enabling. It
+  // only has something to prove while an ecosystem is defined but not enabled, as each new one is until its data is in.
+  const notEnabled = ECOSYSTEM_IDS.filter((id) => !ENABLED_ECOSYSTEMS.includes(id));
+  it.runIf(notEnabled.length > 0)("can name an ecosystem that is defined but not enabled, so its data can go in first", () => {
     for (const id of notEnabled) {
       expect(selectEcosystems(id).explicit).toBe(true);
       expect(selectEcosystems(undefined).ecosystems.map((e) => e.ours)).not.toContain(id);
     }
   });
-  it("takes Cargo by its id or by OSV's name for it, though it is not enabled", () => {
+  it("takes Cargo by its id or by OSV's name for it", () => {
     expect(selectEcosystems("cargo")).toEqual({ ecosystems: [{ ours: "cargo", osv: "crates.io" }], explicit: true });
     expect(selectEcosystems("crates.io")).toEqual({ ecosystems: [{ ours: "cargo", osv: "crates.io" }], explicit: true });
     expect(defaultOutName(true, selectEcosystems("cargo").ecosystems)).toBe("out-cargo");
@@ -61,18 +64,22 @@ describe("parseSyncStateIds", () => {
 describe("assertGeneratedFor", () => {
   const all = selectEcosystems(undefined).ecosystems;
   const pypi = selectEcosystems("pypi").ecosystems;
-  it("accepts a directory generated for exactly what is being loaded", () => {
-    expect(() => assertGeneratedFor(["npm", "pypi"], all)).not.toThrow();
-    expect(() => assertGeneratedFor(["pypi", "npm"], all)).not.toThrow();
+  const enabled = [...ENABLED_ECOSYSTEMS];
+  it("accepts a directory generated for exactly what is being loaded, in any order", () => {
+    expect(() => assertGeneratedFor(enabled, all)).not.toThrow();
+    expect(() => assertGeneratedFor([...enabled].reverse(), all)).not.toThrow();
     expect(() => assertGeneratedFor(["pypi"], pypi)).not.toThrow();
   });
-  it("takes output from before the stats recorded this to be the full, enabled set", () => {
-    expect(() => assertGeneratedFor(undefined, all)).not.toThrow();
+  it("takes output from before the stats recorded this to be npm and PyPI, never the enabled set, which grows", () => {
+    // Written when only those two existed. Taken for the current, larger set it would load a database missing Cargo.
+    const legacy = [{ ours: "npm" as const, osv: "npm" }, { ours: "pypi" as const, osv: "PyPI" }];
+    expect(() => assertGeneratedFor(undefined, legacy)).not.toThrow();
+    expect(() => assertGeneratedFor(undefined, all)).toThrow(/generated for \[npm, pypi\], but this load is for \[npm, pypi, cargo\]/);
     expect(() => assertGeneratedFor(undefined, pypi)).toThrow(/generated for \[npm, pypi\], but this load is for \[pypi\]/);
   });
   it("refuses a single-ecosystem directory for a full load, and the reverse", () => {
     expect(() => assertGeneratedFor(["pypi"], all)).toThrow(/generate again with the same --ecosystem/);
-    expect(() => assertGeneratedFor(["npm", "pypi"], pypi)).toThrow(/generate again/);
+    expect(() => assertGeneratedFor(enabled, pypi)).toThrow(/generate again/);
     expect(() => assertGeneratedFor(["npm"], pypi)).toThrow(/generated for \[npm\], but this load is for \[pypi\]/);
   });
 });

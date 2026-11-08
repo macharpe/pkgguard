@@ -160,9 +160,9 @@ describe("real Cargo advisories", () => {
     expect(summarizeVerdict(evaluate("cargo", entry!, "0.1.43")).outcome).toBe("flagged");
     expect(summarizeVerdict(evaluate("cargo", entry!, "0.3.0")).outcome).toBe("allowed");
   });
-  it("is invisible to the enabled-ecosystem distiller while Cargo is not enabled", async () => {
+  it("is read by the distiller the refresh uses, now that Cargo is enabled", async () => {
     const { distill } = await import("../src/index.js");
-    expect(distill(finch)).toEqual([]);
-    expect(distill(time)).toEqual([]);
+    expect(distill(finch).map((r) => r.ecosystem)).toEqual(["cargo"]);
+    expect(distill(time).map((r) => r.ecosystem)).toEqual(["cargo"]);
   });
 });

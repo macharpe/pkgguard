@@ -462,8 +462,13 @@
   },
   {
    "url": "https://static.crates.io/crates/serde/serde-1.0.200.crate",
-   "pkg": null,
-   "purl": null
+   "pkg": {
+    "ecosystem": "cargo",
+    "namespace": null,
+    "name": "serde",
+    "version": "1.0.200"
+   },
+   "purl": "pkg:cargo/serde@1.0.200"
   },
   {
    "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
