@@ -1,9 +1,8 @@
-import { evaluate, kvKey, normalizeName, parseKvValue, isNegative, summarizeVerdict, type Ecosystem } from "@pkgguard/core";
+import { ENABLED_ECOSYSTEMS, evaluate, kvKey, normalizeName, parseKvValue, isNegative, summarizeVerdict, type Ecosystem } from "@pkgguard/core";
 import type { AdvisoriesResponse, AdvisoryRow, PackageResult } from "../api-types.js";
 import type { Env } from "../env.js";
 import { HttpError, enumParam, json } from "../http.js";
 
-const ECOSYSTEMS = ["npm", "pypi"] as const satisfies readonly Ecosystem[];
 const MAX_PACKAGES = 25;
 const MAX_ROWS = 200;
 
@@ -17,12 +16,12 @@ export async function advisories(env: Env, url: URL): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim();
   if (q === "") throw new HttpError(400, "q is required");
   if (q.length > 214) throw new HttpError(400, "q is too long");
-  const only = enumParam(url, "ecosystem", ECOSYSTEMS);
+  const only = enumParam(url, "ecosystem", ENABLED_ECOSYSTEMS);
   const version = (url.searchParams.get("version") ?? "").trim();
   if (version.length > 128) throw new HttpError(400, "version is too long");
 
   const packages = new Map<string, PackageResult>();
-  for (const ecosystem of only ? [only] : ECOSYSTEMS) {
+  for (const ecosystem of only ? [only] : ENABLED_ECOSYSTEMS) {
     const prefix = normalizeName(ecosystem, q);
     const { results } = await env.DB.prepare(
       "SELECT ecosystem, package_name, osv_id, kind, severity, summary FROM advisories " +

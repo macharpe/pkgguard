@@ -1,4 +1,5 @@
-import type { Ecosystem } from "../normalize.js";
+import type { Ecosystem } from "../ecosystem-ids.js";
+import { ECOSYSTEMS } from "../ecosystems/index.js";
 import { normalizeName } from "../normalize.js";
 import { distill } from "./distill.js";
 import { buildKvEntry, type KvEntry } from "./index-entry.js";
@@ -6,11 +7,9 @@ import type { OsvRecord } from "./types.js";
 
 export const OSV_QUERY_URL = "https://api.osv.dev/v1/query";
 
-const OSV_ECOSYSTEM: Record<Ecosystem, string> = { npm: "npm", pypi: "PyPI" };
-
 /** Request body for a package-wide (not version-specific) OSV query, so the answer can be cached per package. */
 export function osvQueryBody(ecosystem: Ecosystem, name: string): { package: { ecosystem: string; name: string } } {
-  return { package: { ecosystem: OSV_ECOSYSTEM[ecosystem], name: normalizeName(ecosystem, name) } };
+  return { package: { ecosystem: ECOSYSTEMS[ecosystem].osvName, name: normalizeName(ecosystem, name) } };
 }
 
 /** Keeps only well-formed records from an untrusted OSV API response. */

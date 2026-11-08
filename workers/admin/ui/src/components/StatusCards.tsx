@@ -3,6 +3,7 @@ import { Surface } from "@cloudflare/kumo/components/surface";
 import { Text } from "@cloudflare/kumo/components/text";
 import type { ReactNode } from "react";
 import type { StatusResponse } from "../../../src/api-types.js";
+import { ecosystemCounts } from "../ecosystems.js";
 import { formatCount, relativeTime } from "../format.js";
 
 function Card({ title, value, children }: { title: string; value: string; children?: ReactNode }) {
@@ -32,10 +33,10 @@ export function StatusCards({ status, now }: { status: StatusResponse; now: numb
       ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card title="Malware advisories" value={formatCount(sum(advisories, "malware"))}>
-          npm {formatCount(advisories["npm"]?.["malware"] ?? 0)} · PyPI {formatCount(advisories["pypi"]?.["malware"] ?? 0)}
+          {ecosystemCounts(advisories, "malware", formatCount)}
         </Card>
         <Card title="Vulnerability advisories" value={formatCount(sum(advisories, "vulnerability"))}>
-          npm {formatCount(advisories["npm"]?.["vulnerability"] ?? 0)} · PyPI {formatCount(advisories["pypi"]?.["vulnerability"] ?? 0)}
+          {ecosystemCounts(advisories, "vulnerability", formatCount)}
         </Card>
         <Card title="Blocked, last 24 hours" value={formatCount(recent.blocked)}>
           {formatCount(recent.flagged)} flagged · {formatCount(recent.allowed)} allowed

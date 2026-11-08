@@ -24,7 +24,7 @@ describe("clientKind", () => {
   });
   it.each(["npm/11.18.0 node/v24 darwin arm64", "pnpm/9.1.0 npm/? node/v22", "yarn/1.22.19 npm/? node/v20", "bun/1.1.0", "Bun/1.1.0", "NPM/10"])(
     "recognises %s as a package manager that prints a JSON error",
-    (ua) => expect(clientKind(req({ accept: "*/*", "user-agent": ua }))).toBe("npm"),
+    (ua) => expect(clientKind(req({ accept: "*/*", "user-agent": ua }))).toBe("json"),
   );
   it.each([PIP["user-agent"], "curl/8.23.0", "Wget/1.21", "python-requests/2.31", "", "my-npm/1.0", "xnpm/1"])(
     "treats %j as plain text",

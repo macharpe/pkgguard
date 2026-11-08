@@ -1,4 +1,4 @@
-import type { Ecosystem } from "../normalize.js";
+import { isEcosystem, type Ecosystem } from "../ecosystem-ids.js";
 import type { Advisory } from "./distill.js";
 import type { AffectedSpec } from "./match.js";
 
@@ -50,7 +50,7 @@ const isSpec = (value: unknown): value is AffectedSpec =>
 /** The inverse, for rebuilding KV entries from D1. Returns null for a row that cannot be trusted, so one bad row never aborts a rebuild. */
 export function advisoryFromRow(row: Record<string, unknown>): Advisory | null {
   const { ecosystem, osv_id, package_name, namespace, kind, cwe_ids, severity, summary, ranges_json, withdrawn, modified } = row;
-  if (ecosystem !== "npm" && ecosystem !== "pypi") return null;
+  if (!isEcosystem(ecosystem)) return null;
   if (typeof osv_id !== "string" || typeof package_name !== "string" || typeof modified !== "string") return null;
   if (kind !== "malware" && kind !== "vulnerability") return null;
   if (typeof ranges_json !== "string") return null;
@@ -62,7 +62,7 @@ export function advisoryFromRow(row: Record<string, unknown>): Advisory | null {
   }
   if (!isSpec(spec)) return null;
   return {
-    ecosystem: ecosystem as Ecosystem,
+    ecosystem,
     osvId: osv_id,
     packageName: package_name,
     namespace: typeof namespace === "string" ? namespace : null,

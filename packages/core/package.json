@@ -10,5 +10,9 @@
   },
   "devDependencies": {
     "@types/semver": "^7.8.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./ecosystems": "./src/ecosystem-ids.ts"
   }
 }

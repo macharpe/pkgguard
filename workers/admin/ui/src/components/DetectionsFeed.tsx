@@ -11,10 +11,10 @@ import type { DetectionRow, DetectionsResponse } from "../../../src/api-types.js
 import { api } from "../api.js";
 import { packageLabel, referenceFilter, relativeTime, splitIds } from "../format.js";
 import { useResource } from "../useResource.js";
+import { ECOSYSTEM_FILTER_ITEMS, ecosystemLabel } from "../ecosystems.js";
 import { VerdictBadge } from "./VerdictBadge.js";
 
 const VERDICTS = { all: "All verdicts", blocked: "Blocked", flagged: "Flagged", allowed: "Allowed", error: "Lookup errors" };
-const ECOSYSTEMS = { all: "All ecosystems", npm: "npm", pypi: "PyPI" };
 
 export function DetectionsFeed({ now }: { now: number }) {
   const [verdict, setVerdict] = useState("all");
@@ -84,7 +84,7 @@ export function DetectionsFeed({ now }: { now: number }) {
             />
           </div>
           <Select label="Verdict" value={verdict} onValueChange={(v) => setVerdict(String(v))} items={VERDICTS} size="sm" />
-          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(String(v))} items={ECOSYSTEMS} size="sm" />
+          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(String(v))} items={ECOSYSTEM_FILTER_ITEMS} size="sm" />
         </div>
       </div>
 
@@ -129,7 +129,7 @@ export function DetectionsFeed({ now }: { now: number }) {
                     </Table.Cell>
                     <Table.Cell>
                       <span className="font-mono text-sm">{packageLabel(row.package_name, row.version)}</span>
-                      <span className="ml-2 text-xs text-kumo-subtle">{row.ecosystem === "pypi" ? "PyPI" : "npm"}</span>
+                      <span className="ml-2 text-xs text-kumo-subtle">{ecosystemLabel(row.ecosystem)}</span>
                     </Table.Cell>
                     <Table.Cell>
                       {ids.length === 0 ? (

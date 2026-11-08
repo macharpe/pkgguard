@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { distill, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
+import { ECOSYSTEMS as ECOSYSTEM_SPECS, ENABLED_ECOSYSTEMS, distill, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
 import { loadDeployEnv } from "./lib/deploy-env.js";
 import { listMigrations } from "./lib/migrations.js";
 import { advisoryInsert, chunk, syncStateInsert } from "./lib/sql.js";
@@ -20,10 +20,7 @@ import { forEachJsonEntry, writeLines } from "./lib/zip.js";
 
 const DATA = resolve("scripts/data");
 const BASE = "https://osv-vulnerabilities.storage.googleapis.com";
-const ECOSYSTEMS = [
-  { osv: "npm", ours: "npm" },
-  { osv: "PyPI", ours: "pypi" },
-] as const;
+const ECOSYSTEMS = ENABLED_ECOSYSTEMS.map((id) => ({ osv: ECOSYSTEM_SPECS[id].osvName, ours: id }));
 const SQL_ROWS_PER_FILE = 10_000;
 const KV_KEYS_PER_FILE = 10_000;
 const CWE_FAMILY = ["CWE-506", "CWE-507", "CWE-510", "CWE-511", "CWE-912"];

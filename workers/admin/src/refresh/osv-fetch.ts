@@ -1,8 +1,8 @@
-import type { Ecosystem, OsvRecord } from "@pkgguard/core";
+import { ECOSYSTEMS, type Ecosystem, type OsvRecord } from "@pkgguard/core";
 
 export const OSV_BASE = "https://osv-vulnerabilities.storage.googleapis.com";
-/** OSV's directory name for each ecosystem. */
-export const OSV_DIR: Record<Ecosystem, string> = { npm: "npm", pypi: "PyPI" };
+/** OSV's directory name for an ecosystem. */
+export const osvDirectory = (ecosystem: Ecosystem): string => ECOSYSTEMS[ecosystem].osvName;
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -25,7 +25,7 @@ export async function fetchRecord(fetchFn: FetchLike, ecosystem: Ecosystem, id: 
   if (!SAFE_ID.test(id)) return { status: "failed", reason: "unsafe id" };
   const attempts = options.attempts ?? 3;
   const sleep = options.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const url = `${OSV_BASE}/${OSV_DIR[ecosystem]}/${encodeURIComponent(id)}.json`;
+  const url = `${OSV_BASE}/${osvDirectory(ecosystem)}/${encodeURIComponent(id)}.json`;
 
   let reason = "unknown";
   for (let attempt = 1; attempt <= attempts; attempt++) {

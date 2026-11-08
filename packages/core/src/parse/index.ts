@@ -1,3 +1,5 @@
+import { ENABLED_ECOSYSTEMS } from "../ecosystem-ids.js";
+import { ECOSYSTEMS } from "../ecosystems/index.js";
 import { parseNpmUrl } from "./npm.js";
 import { parsePypiUrl } from "./pypi.js";
 import type { ParsedPackage } from "./types.js";
@@ -5,22 +7,38 @@ import type { ParsedPackage } from "./types.js";
 export type { ParsedPackage } from "./types.js";
 export { parseNpmUrl, parsePypiUrl };
 
-/** Parses a registry download URL. Total: never throws, null when not a recognised download. */
-export function parsePackageUrl(input: string | URL): ParsedPackage | null {
+/**
+ * The packages a registry download URL could be, or none when it is not a recognised download. Never throws.
+ * Ecosystems are tried in order and the first to recognise the URL answers, so each one's shape must be one no
+ * other accepts (`ecosystems.test.ts` holds a corpus to that). Most URLs have one reading; a few file names
+ * cannot be split into a name and a version without guessing, and then every plausible reading is returned.
+ */
+export function parsePackageCandidates(input: string | URL): ParsedPackage[] {
   let url: URL;
   try {
     url = typeof input === "string" ? new URL(input) : input;
   } catch {
-    return null;
+    return [];
   }
-  return parseNpmUrl(url) ?? parsePypiUrl(url);
+  for (const id of ENABLED_ECOSYSTEMS) {
+    try {
+      const found = ECOSYSTEMS[id].parse(url);
+      if (found.length > 0) return found;
+    } catch {
+      // A parser that throws is a parser that did not recognise the URL: this must stay total.
+    }
+  }
+  return [];
+}
+
+/** The first reading of a registry download URL, or null. Total: never throws. */
+export function parsePackageUrl(input: string | URL): ParsedPackage | null {
+  return parsePackageCandidates(input)[0] ?? null;
 }
 
 /** Package URL per the purl spec. npm scope is percent-encoded as `%40scope`. */
 export function toPurl(pkg: ParsedPackage): string {
-  const name = encodeURIComponent(pkg.name.toLowerCase());
-  const type = pkg.ecosystem;
-  const normalizedName = type === "pypi" ? name.replace(/[-_.]+/g, "-") : name;
+  const spec = ECOSYSTEMS[pkg.ecosystem];
   const ns = pkg.namespace ? `${encodeURIComponent(pkg.namespace.toLowerCase())}/` : "";
-  return `pkg:${type}/${ns}${normalizedName}@${encodeURIComponent(pkg.version)}`;
+  return `pkg:${spec.purlType}/${ns}${encodeURIComponent(spec.purlName(pkg.name))}@${encodeURIComponent(pkg.version)}`;
 }

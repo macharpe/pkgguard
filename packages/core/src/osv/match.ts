@@ -1,4 +1,4 @@
-import type { Ecosystem } from "../normalize.js";
+import type { Ecosystem } from "../ecosystem-ids.js";
 import { compareVersions } from "../version/index.js";
 import type { OsvEvent } from "./types.js";
 

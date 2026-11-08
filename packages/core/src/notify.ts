@@ -5,6 +5,7 @@
  * which carries its own key and token.
  */
 
+import { ecosystemLabel, type Ecosystem } from "./ecosystem-ids.js";
 import { isReference } from "./reference.js";
 
 export interface ChatMessage {
@@ -78,7 +79,7 @@ const code = (value: string): string => `\`${value}\``;
 const osvLink = (id: string): string => `<https://osv.dev/vulnerability/${encodeURIComponent(safeToken(id, 64))}|${safeToken(id, 64)}>`;
 
 export interface MalwareAlert {
-  ecosystem: "npm" | "pypi";
+  ecosystem: Ecosystem;
   name: string;
   version: string | null;
   user: string | null;
@@ -95,7 +96,7 @@ export function malwareMessage(a: MalwareAlert): ChatMessage {
   const outcome = a.blocked ? "*blocked*" : "*observed, not blocked* (enforcement is off)";
   const lines = [
     `🚨 *Malicious package ${a.reason === "override" ? "on the block list" : "detected"}*`,
-    `${code(pkg)} (${a.ecosystem === "pypi" ? "PyPI" : "npm"}) — ${outcome}`,
+    `${code(pkg)} (${ecosystemLabel(a.ecosystem)}) — ${outcome}`,
     `User: ${code(safeToken(a.user ?? "unknown", 120))}`,
   ];
   if (isReference(a.reference)) lines.push(`Reference: ${code(a.reference)}`);
@@ -136,7 +137,7 @@ export function refreshMessage(a: RefreshAlert): ChatMessage {
 export interface OverrideAlert {
   action: "added" | "removed";
   mode: "block" | "allow";
-  ecosystem: "npm" | "pypi";
+  ecosystem: Ecosystem;
   name: string;
   versions: string[] | null;
   note: string | null;
@@ -148,7 +149,7 @@ export function overrideMessage(a: OverrideAlert): ChatMessage {
   const verb = a.action === "added" ? "added" : "removed";
   const note = a.note ? `\nNote: ${safeText(a.note, 200)}` : "";
   return {
-    text: `🔧 *${a.mode === "block" ? "Block" : "Allow"} override ${verb}*\n${code(safeToken(a.name))} (${a.ecosystem === "pypi" ? "PyPI" : "npm"}), ${scope}\nBy ${code(safeToken(a.actor, 120))}${note}`,
+    text: `🔧 *${a.mode === "block" ? "Block" : "Allow"} override ${verb}*\n${code(safeToken(a.name))} (${ecosystemLabel(a.ecosystem)}), ${scope}\nBy ${code(safeToken(a.actor, 120))}${note}`,
   };
 }
 

@@ -1,10 +1,10 @@
+import { ENABLED_ECOSYSTEMS } from "@pkgguard/core";
 import { isReference } from "@pkgguard/core";
 import type { DetectionRow, DetectionsResponse } from "../api-types.js";
 import type { Env } from "../env.js";
 import { HttpError, enumParam, intParam, json } from "../http.js";
 
 const VERDICTS = ["blocked", "flagged", "allowed", "error"] as const;
-const ECOSYSTEMS = ["npm", "pypi"] as const;
 
 /** A developer may type it in any case and with stray spaces; anything that is not a reference is a mistake. */
 function referenceParam(url: URL): string | null {
@@ -17,7 +17,7 @@ function referenceParam(url: URL): string | null {
 /** Newest first, keyset-paginated on id: `before` is the smallest id of the previous page. */
 export async function detections(env: Env, url: URL): Promise<Response> {
   const verdict = enumParam(url, "verdict", VERDICTS);
-  const ecosystem = enumParam(url, "ecosystem", ECOSYSTEMS);
+  const ecosystem = enumParam(url, "ecosystem", ENABLED_ECOSYSTEMS);
   const reference = referenceParam(url);
   const limit = intParam(url, "limit", 50, 200);
   const beforeRaw = url.searchParams.get("before");

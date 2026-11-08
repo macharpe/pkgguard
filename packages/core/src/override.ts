@@ -1,4 +1,4 @@
-import type { Ecosystem } from "./normalize.js";
+import type { Ecosystem } from "./ecosystem-ids.js";
 import { normalizeName } from "./normalize.js";
 import { isVersionAffected } from "./osv/match.js";
 

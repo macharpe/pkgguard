@@ -1,4 +1,4 @@
-import { ADVISORY_COLUMNS, advisoryFromRow, advisoryRow, buildKvEntry, distill, kvKey, type Advisory, type Ecosystem, type OsvRecord } from "@pkgguard/core";
+import { ADVISORY_COLUMNS, advisoryFromRow, advisoryRow, buildKvEntry, distill, enabledEcosystemSqlList, kvKey, type Advisory, type Ecosystem, type OsvRecord } from "@pkgguard/core";
 
 /** D1 allows 100 bound parameters per query; stay well inside it. */
 const IN_CHUNK = 90;
@@ -54,7 +54,7 @@ export async function applyRecords(deps: ApplyDeps, records: readonly OsvRecord[
   const touched = new Map<string, { ecosystem: Ecosystem; name: string }>();
   for (const part of chunks(ids, IN_CHUNK)) {
     const { results } = await deps.db
-      .prepare(`SELECT osv_id, ecosystem, package_name FROM advisories WHERE ecosystem IN ('npm','pypi') AND osv_id IN (${marks(part.length)})`)
+      .prepare(`SELECT osv_id, ecosystem, package_name FROM advisories WHERE ecosystem IN (${enabledEcosystemSqlList()}) AND osv_id IN (${marks(part.length)})`)
       .bind(...part)
       .all<{ osv_id: string; ecosystem: Ecosystem; package_name: string }>();
     for (const row of results) {
@@ -66,7 +66,7 @@ export async function applyRecords(deps: ApplyDeps, records: readonly OsvRecord[
   for (const a of advisories.values()) touched.set(pkgKey(a.ecosystem, a.packageName), { ecosystem: a.ecosystem, name: a.packageName });
 
   const insert = deps.db.prepare(`INSERT OR REPLACE INTO advisories (${ADVISORY_COLUMNS.join(", ")}) VALUES (${marks(ADVISORY_COLUMNS.length)})`);
-  const remove = deps.db.prepare("DELETE FROM advisories WHERE ecosystem IN ('npm','pypi') AND osv_id = ?");
+  const remove = deps.db.prepare(`DELETE FROM advisories WHERE ecosystem IN (${enabledEcosystemSqlList()}) AND osv_id = ?`);
   await deps.db.batch([...ids.map((id) => remove.bind(id)), ...[...advisories.values()].map((a) => insert.bind(...advisoryRow(a)))]);
 
   // Rebuild KV from the rows now in D1.

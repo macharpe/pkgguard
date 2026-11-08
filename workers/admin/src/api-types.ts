@@ -1,6 +1,8 @@
 /** The API contract. Type-only: imported by the handlers and by the dashboard, so the two cannot drift. */
 
-export type Ecosystem = "npm" | "pypi";
+import type { Ecosystem } from "@pkgguard/core/ecosystems";
+
+export type { Ecosystem };
 export type DetectionVerdict = "blocked" | "flagged" | "allowed" | "error";
 
 export interface DetectionRow {

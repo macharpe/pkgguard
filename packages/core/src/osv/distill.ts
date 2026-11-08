@@ -1,10 +1,9 @@
-import type { Ecosystem } from "../normalize.js";
+import type { Ecosystem } from "../ecosystem-ids.js";
+import { ECOSYSTEMS, ecosystemFromOsvName } from "../ecosystems/index.js";
 import { normalizeName } from "../normalize.js";
 import { classify, collectCweIds } from "./classify.js";
 import type { AffectedSpec } from "./match.js";
 import type { AdvisoryKind, OsvRecord } from "./types.js";
-
-const OSV_ECOSYSTEMS: Record<string, Ecosystem> = { npm: "npm", PyPI: "pypi" };
 
 /** One row per (ecosystem, osv_id, package_name). A single OSV record can affect several packages. */
 export interface Advisory {
@@ -30,12 +29,6 @@ function severityOf(record: OsvRecord): string | null {
   return SEVERITIES.has(upper) ? upper : null;
 }
 
-function namespaceOf(ecosystem: Ecosystem, name: string): string | null {
-  if (ecosystem !== "npm" || !name.startsWith("@")) return null;
-  const slash = name.indexOf("/");
-  return slash > 1 ? name.slice(0, slash) : null;
-}
-
 /**
  * Turns an OSV record into advisory rows for the ecosystems in scope.
  * Multiple `affected[]` entries for one package are merged. GIT ranges are dropped.
@@ -46,7 +39,7 @@ export function distill(record: OsvRecord): Advisory[] {
   const merged = new Map<string, Advisory>();
 
   for (const affected of record.affected ?? []) {
-    const ecosystem = OSV_ECOSYSTEMS[affected.package?.ecosystem ?? ""];
+    const ecosystem = ecosystemFromOsvName(affected.package?.ecosystem);
     const rawName = affected.package?.name;
     if (!ecosystem || typeof rawName !== "string" || rawName.trim() === "") continue;
 
@@ -58,7 +51,7 @@ export function distill(record: OsvRecord): Advisory[] {
         ecosystem,
         osvId: record.id,
         packageName,
-        namespace: namespaceOf(ecosystem, packageName),
+        namespace: ECOSYSTEMS[ecosystem].namespaceOf(packageName),
         kind,
         severity: severityOf(record),
         summary: record.summary ?? null,

@@ -10,10 +10,9 @@ import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import type { AdvisoriesResponse, AdvisoryRow, PackageResult } from "../../../src/api-types.js";
 import { api } from "../api.js";
+import { ECOSYSTEM_FILTER_ITEMS, ecosystemLabel } from "../ecosystems.js";
 import { osvUrl, plural, simulationLabel } from "../format.js";
 import { VerdictBadge } from "./VerdictBadge.js";
-
-const ECOSYSTEMS = { all: "All ecosystems", npm: "npm", pypi: "PyPI" };
 
 function Advisories({ title, rows }: { title: string; rows: AdvisoryRow[] }) {
   if (rows.length === 0) return null;
@@ -43,7 +42,7 @@ function Result({ pkg }: { pkg: PackageResult }) {
     <li className="flex flex-col gap-3 rounded-xl border border-kumo-line bg-kumo-base p-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-base text-kumo-default">{pkg.name}</span>
-        <Badge variant="outline">{pkg.ecosystem === "pypi" ? "PyPI" : "npm"}</Badge>
+        <Badge variant="outline">{ecosystemLabel(pkg.ecosystem)}</Badge>
         {pkg.malware.length > 0 ? <Badge variant="red">{plural(pkg.malware.length, "malware advisory", "malware advisories")}</Badge> : null}
         {pkg.vulnerabilities.length > 0 ? <Badge variant="orange">{plural(pkg.vulnerabilities.length, "vulnerability", "vulnerabilities")}</Badge> : null}
       </div>
@@ -100,7 +99,7 @@ export function PackageLookup() {
           <Input label="Version (optional)" placeholder="4.17.20" value={version} onChange={(e) => setVersion(e.target.value)} />
         </div>
         <div className="w-48 shrink-0">
-          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(String(v))} items={ECOSYSTEMS} className="w-full" />
+          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(String(v))} items={ECOSYSTEM_FILTER_ITEMS} className="w-full" />
         </div>
         <Button type="submit" variant="primary" icon={<MagnifyingGlass size={16} />} loading={state.status === "loading"} disabled={q.trim() === ""}>
           Search

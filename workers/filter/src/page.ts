@@ -1,4 +1,4 @@
-import { isReference, safeText, safeToken, type ParsedPackage } from "@pkgguard/core";
+import { ecosystemLabel, isReference, safeText, safeToken, type Ecosystem, type ParsedPackage } from "@pkgguard/core";
 import type { Decision } from "./decide.js";
 import { fullName } from "./decide.js";
 
@@ -16,14 +16,15 @@ import { fullName } from "./decide.js";
  * `Accept` cannot tell these apart: npm and pip both send `*\/*` on a download. The User-Agent can.
  */
 
-export type ClientKind = "browser" | "npm" | "plain";
+/** `json` is a package manager that prints the `error` field of a JSON body (npm and its relatives). */
+export type ClientKind = "browser" | "json" | "plain";
 
 const PACKAGE_MANAGER_AGENT = /^(npm|pnpm|yarn|bun)\//i;
 const DEFAULT_CONTACT = "the PkgGuard space in Google Chat";
 
 export function clientKind(request: Pick<Request, "headers">): ClientKind {
   if ((request.headers.get("accept") ?? "").toLowerCase().includes("text/html")) return "browser";
-  if (PACKAGE_MANAGER_AGENT.test(request.headers.get("user-agent") ?? "")) return "npm";
+  if (PACKAGE_MANAGER_AGENT.test(request.headers.get("user-agent") ?? "")) return "json";
   return "plain";
 }
 
@@ -37,7 +38,7 @@ const reasonText = (text: string, max: number): string => {
 
 interface Facts {
   subject: string;
-  ecosystem: "npm" | "pypi";
+  ecosystem: Ecosystem;
   ecosystemLabel: string;
   why: string;
   short: string;
@@ -54,7 +55,7 @@ function facts(pkg: ParsedPackage, decision: Decision, rawReference: string | nu
   return {
     subject,
     ecosystem: pkg.ecosystem,
-    ecosystemLabel: pkg.ecosystem === "pypi" ? "PyPI" : "npm",
+    ecosystemLabel: ecosystemLabel(pkg.ecosystem),
     why: isOverride ? "An administrator has blocked this package." : "This version is listed as malware in the OSV database.",
     short: isOverride ? "blocked by an administrator" : "listed as malware",
     reference,
@@ -166,8 +167,8 @@ export function blockResponse(
 ): Response {
   const f = facts(pkg, decision, reference, contact);
   const kind = clientKind(request);
-  const body = kind === "browser" ? htmlBody(f) : kind === "npm" ? jsonBody(f) : plainBody(f);
-  const type = kind === "browser" ? "text/html; charset=utf-8" : kind === "npm" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8";
+  const body = kind === "browser" ? htmlBody(f) : kind === "json" ? jsonBody(f) : plainBody(f);
+  const type = kind === "browser" ? "text/html; charset=utf-8" : kind === "json" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8";
   const headers: Record<string, string> = { ...SECURITY_HEADERS, "content-type": type };
   if (f.reference) headers["x-pkgguard-reference"] = f.reference;
   return new Response(body, { status: 403, statusText: reasonPhrase(f), headers });

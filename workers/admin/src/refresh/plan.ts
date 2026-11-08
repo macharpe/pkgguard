@@ -1,10 +1,9 @@
-import type { Ecosystem } from "@pkgguard/core";
+import { ENABLED_ECOSYSTEMS, type Ecosystem } from "@pkgguard/core";
 import { maxIso, normalizeIso } from "./iso.js";
 import { scanModifiedCsv } from "./modified-csv.js";
-import { OSV_BASE, OSV_DIR, type FetchLike } from "./osv-fetch.js";
+import { OSV_BASE, osvDirectory, type FetchLike } from "./osv-fetch.js";
 import { updateRun } from "./runs.js";
 
-export const ECOSYSTEMS: readonly Ecosystem[] = ["npm", "pypi"];
 /** More than this is not a delta: it is a rebuild, which is the bootstrap's job. */
 export const MAX_DELTA = 20_000;
 const INSERT_BATCH = 500;
@@ -31,11 +30,11 @@ export async function planRun(deps: PlanDeps, runId: string): Promise<{ total: n
   const planned: PlannedItem[] = [];
   const recordCounts = new Map<Ecosystem, number>();
 
-  for (const ecosystem of ECOSYSTEMS) {
+  for (const ecosystem of ENABLED_ECOSYSTEMS) {
     const state = await deps.db.prepare("SELECT last_modified FROM sync_state WHERE ecosystem = ?").bind(ecosystem).first<{ last_modified: string }>();
     if (!state) throw new PlanError(`no sync state for ${ecosystem}: run the bootstrap first`);
 
-    const response = await deps.fetch(`${OSV_BASE}/${OSV_DIR[ecosystem]}/modified_id.csv`);
+    const response = await deps.fetch(`${OSV_BASE}/${osvDirectory(ecosystem)}/modified_id.csv`);
     if (!response.ok || !response.body) throw new Error(`modified_id.csv for ${ecosystem} returned HTTP ${response.status}`);
     const scan = await scanModifiedCsv(response.body, state.last_modified, MAX_DELTA - planned.length);
     recordCounts.set(ecosystem, scan.total);
@@ -72,7 +71,7 @@ export async function advanceHighWater(db: D1Database, runId: string, syncedAt: 
   const highWater: Partial<Record<Ecosystem, string>> = {};
   let failed = 0;
 
-  for (const ecosystem of ECOSYSTEMS) {
+  for (const ecosystem of ENABLED_ECOSYSTEMS) {
     const items = results.filter((r) => r.ecosystem === ecosystem);
     const failures = items.filter((r) => r.status === "failed");
     failed += failures.length;

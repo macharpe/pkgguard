@@ -9,19 +9,19 @@ import { Table } from "@cloudflare/kumo/components/table";
 import { Text } from "@cloudflare/kumo/components/text";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
-import type { AddOverrideRequest, OverrideItem } from "../../../src/api-types.js";
+import type { AddOverrideRequest, Ecosystem, OverrideItem } from "../../../src/api-types.js";
+import { DEFAULT_ECOSYSTEM, ECOSYSTEM_ITEMS, ecosystemLabel, toEcosystem } from "../ecosystems.js";
 import { api } from "../api.js";
 import { parseVersionsInput, relativeTime, versionsLabel } from "../format.js";
 import { useResource } from "../useResource.js";
 
 const MODES = { block: "Block", allow: "Allow" };
-const ECOSYSTEMS = { npm: "npm", pypi: "PyPI" };
 const key = (o: Pick<OverrideItem, "mode" | "ecosystem" | "package_name">) => `${o.mode}:${o.ecosystem}:${o.package_name}`;
 
 export function OverridesPanel({ now }: { now: number }) {
   const list = useResource((signal) => api.overrides(signal), []);
   const [mode, setMode] = useState<"block" | "allow">("block");
-  const [ecosystem, setEcosystem] = useState<"npm" | "pypi">("npm");
+  const [ecosystem, setEcosystem] = useState<Ecosystem>(DEFAULT_ECOSYSTEM);
   const [name, setName] = useState("");
   const [versions, setVersions] = useState("");
   const [note, setNote] = useState("");
@@ -84,7 +84,7 @@ export function OverridesPanel({ now }: { now: number }) {
           <Select label="Action" value={mode} onValueChange={(v) => setMode(v === "allow" ? "allow" : "block")} items={MODES} className="w-full" />
         </div>
         <div className="w-32 shrink-0">
-          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(v === "pypi" ? "pypi" : "npm")} items={ECOSYSTEMS} className="w-full" />
+          <Select label="Ecosystem" value={ecosystem} onValueChange={(v) => setEcosystem(toEcosystem(v))} items={ECOSYSTEM_ITEMS} className="w-full" />
         </div>
         <div className="min-w-48 flex-1">
           <Input label="Package" placeholder="left-pad, @scope/name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -132,7 +132,7 @@ export function OverridesPanel({ now }: { now: number }) {
                   </Table.Cell>
                   <Table.Cell>
                     <span className="font-mono text-sm">{item.package_name}</span>
-                    <span className="ml-2 text-xs text-kumo-subtle">{item.ecosystem === "pypi" ? "PyPI" : "npm"}</span>
+                    <span className="ml-2 text-xs text-kumo-subtle">{ecosystemLabel(item.ecosystem)}</span>
                   </Table.Cell>
                   <Table.Cell>
                     <span className="font-mono text-xs">{versionsLabel(item.versions)}</span>

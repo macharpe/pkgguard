@@ -1,4 +1,4 @@
-import { normalizeName, overrideKey, type Ecosystem, type KvOverride, type OverrideMode } from "@pkgguard/core";
+import { ECOSYSTEMS, ENABLED_ECOSYSTEMS, normalizeName, overrideKey, type Ecosystem, type KvOverride, type OverrideMode } from "@pkgguard/core";
 import type { Env } from "./env.js";
 import { HttpError } from "./http.js";
 
@@ -22,14 +22,9 @@ export interface OverrideRow {
 
 export const MAX_OVERRIDES = 1000;
 const MAX_VERSIONS = 100;
-const MAX_NAME = 214;
-// A scope is optional; each part must start alphanumeric, so "..", "/x" and "a//b" can never be keys.
-const NPM_NAME = /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
-const PYPI_NAME = /^[a-z0-9-]+$/;
 const VERSION = /^[A-Za-z0-9._+!~-]{1,128}$/;
 const NOTE_MAX = 500;
 
-const ECOSYSTEMS = ["npm", "pypi"] as const;
 const MODES = ["block", "allow"] as const;
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], field: string): T {
@@ -40,16 +35,17 @@ function pick<T extends string>(value: unknown, allowed: readonly T[], field: st
 function parseName(ecosystem: Ecosystem, value: unknown): string {
   if (typeof value !== "string") throw new HttpError(400, "name is required");
   const raw = value.trim();
-  if (raw === "" || raw.length > MAX_NAME) throw new HttpError(400, `name must be 1 to ${MAX_NAME} characters`);
+  const spec = ECOSYSTEMS[ecosystem];
+  if (raw === "" || raw.length > spec.maxNameLength) throw new HttpError(400, `name must be 1 to ${spec.maxNameLength} characters`);
   const name = normalizeName(ecosystem, raw);
-  if (!(ecosystem === "npm" ? NPM_NAME : PYPI_NAME).test(name)) throw new HttpError(400, "name contains characters a package name cannot have");
+  if (!spec.overrideNamePattern.test(name)) throw new HttpError(400, "name contains characters a package name cannot have");
   if (overrideKey("block", ecosystem, name) === null) throw new HttpError(400, "name is too long");
   return name;
 }
 
 /** Validates everything an administrator sends, and normalises the name the same way the filter will. */
 export function parseOverrideInput(body: Record<string, unknown>): OverrideInput {
-  const ecosystem = pick(body["ecosystem"], ECOSYSTEMS, "ecosystem");
+  const ecosystem = pick(body["ecosystem"], ENABLED_ECOSYSTEMS, "ecosystem");
   const mode = pick(body["mode"], MODES, "mode");
   const name = parseName(ecosystem, body["name"]);
 
@@ -75,7 +71,7 @@ export function parseOverrideInput(body: Record<string, unknown>): OverrideInput
 }
 
 export function parseOverrideRef(body: Record<string, unknown>): Pick<OverrideInput, "ecosystem" | "name" | "mode"> {
-  const ecosystem = pick(body["ecosystem"], ECOSYSTEMS, "ecosystem");
+  const ecosystem = pick(body["ecosystem"], ENABLED_ECOSYSTEMS, "ecosystem");
   return { ecosystem, mode: pick(body["mode"], MODES, "mode"), name: parseName(ecosystem, body["name"]) };
 }
 

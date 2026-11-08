@@ -4,7 +4,13 @@
  * import, once the provider supports it.
  */
 
-/** Follows the account convention: <FILTER>-<Action>: <description> [<family>]. */
+import { ECOSYSTEMS, ENABLED_ECOSYSTEMS } from "../../packages/core/src/index.js";
+
+/**
+ * Follows the account convention: <FILTER>-<Action>: <description> [<family>].
+ * `findRule` matches on this name, so it must not change while the rule exists: the name still says "npm and PyPI"
+ * although the traffic expression below now follows the enabled ecosystems.
+ */
 export const RULE_NAME = "HTTP-Forward: npm and PyPI downloads to PkgGuard [Package Registry Security]";
 export const WORKER_NAME = "pkgguard-filter";
 export const DEFAULT_PRECEDENCE = 47_000;
@@ -98,11 +104,14 @@ export function buildPayload(input: RuleInput): RulePayload {
     precedence: input.precedence,
     action: "forward",
     filters: ["http"],
-    traffic: 'pkg.ecosystem in {"npm" "pypi"}',
+    traffic: trafficExpression(),
     identity: identityExpression(input.scope),
     rule_settings: { forward: { worker_id: input.workerId } },
   };
 }
+
+/** The ecosystems the rule forwards, written as Gateway's `pkg.ecosystem` selector expects. */
+export const trafficExpression = (): string => `pkg.ecosystem in {${ENABLED_ECOSYSTEMS.map((id) => `"${ECOSYSTEMS[id].gatewayName}"`).join(" ")}}`;
 
 export const findRule = (rules: readonly GatewayRule[]): GatewayRule | undefined => rules.find((r) => r.name === RULE_NAME);
 
