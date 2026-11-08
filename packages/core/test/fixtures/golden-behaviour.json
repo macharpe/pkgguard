@@ -1,0 +1,1424 @@
+{
+ "parse": [
+  {
+   "url": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "lodash",
+    "version": "4.17.21"
+   },
+   "purl": "pkg:npm/lodash@4.17.21"
+  },
+  {
+   "url": "https://registry.npmjs.org/@babel/core/-/core-7.24.0.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@babel",
+    "name": "core",
+    "version": "7.24.0"
+   },
+   "purl": "pkg:npm/%40babel/core@7.24.0"
+  },
+  {
+   "url": "https://registry.npmjs.org/@babel%2fcore/-/core-7.24.0.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@babel",
+    "name": "core",
+    "version": "7.24.0"
+   },
+   "purl": "pkg:npm/%40babel/core@7.24.0"
+  },
+  {
+   "url": "https://registry.npmjs.org/@babel%2Fcore/-/core-7.24.0.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@babel",
+    "name": "core",
+    "version": "7.24.0"
+   },
+   "purl": "pkg:npm/%40babel/core@7.24.0"
+  },
+  {
+   "url": "https://registry.npmjs.org/%40babel%2Fcore/-/core-7.24.0.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@babel",
+    "name": "core",
+    "version": "7.24.0"
+   },
+   "purl": "pkg:npm/%40babel/core@7.24.0"
+  },
+  {
+   "url": "https://registry.npmjs.org/%40babel/core/-/core-7.24.0.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@babel",
+    "name": "core",
+    "version": "7.24.0"
+   },
+   "purl": "pkg:npm/%40babel/core@7.24.0"
+  },
+  {
+   "url": "https://registry.npmjs.org/react/-/react-19.0.0-rc.1.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "react",
+    "version": "19.0.0-rc.1"
+   },
+   "purl": "pkg:npm/react@19.0.0-rc.1"
+  },
+  {
+   "url": "https://registry.npmjs.org/foo/-/foo-1.0.0-beta.2+build.5.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0.0-beta.2+build.5"
+   },
+   "purl": "pkg:npm/foo@1.0.0-beta.2%2Bbuild.5"
+  },
+  {
+   "url": "https://registry.npmjs.org/event-stream/-/event-stream-3.3.6.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "event-stream",
+    "version": "3.3.6"
+   },
+   "purl": "pkg:npm/event-stream@3.3.6"
+  },
+  {
+   "url": "https://registry.npmjs.org//vfat-tools/-/vfat-tools-0.0.1-security.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "vfat-tools",
+    "version": "0.0.1-security"
+   },
+   "purl": "pkg:npm/vfat-tools@0.0.1-security"
+  },
+  {
+   "url": "https://registry.npmjs.org/vfat-tools/%2d/vfat-tools-0.0.1-security.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "vfat-tools",
+    "version": "0.0.1-security"
+   },
+   "purl": "pkg:npm/vfat-tools@0.0.1-security"
+  },
+  {
+   "url": "https://registry.npmjs.org/vfat-tools/-/vfat-tools-0.0.1-security.tgz?x=1#frag",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "vfat-tools",
+    "version": "0.0.1-security"
+   },
+   "purl": "pkg:npm/vfat-tools@0.0.1-security"
+  },
+  {
+   "url": "https://registry.npmjs.org/x/../lodash/-/lodash-4.17.21.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "lodash",
+    "version": "4.17.21"
+   },
+   "purl": "pkg:npm/lodash@4.17.21"
+  },
+  {
+   "url": "https://registry.npmjs.org/x/%2e%2e/lodash/-/lodash-4.17.21.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "lodash",
+    "version": "4.17.21"
+   },
+   "purl": "pkg:npm/lodash@4.17.21"
+  },
+  {
+   "url": "https://registry.npmjs.org/%252e/-/x-1.0.0.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/LODASH/-/lodash-4.17.21.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/@scope/pkg/-/@scope/pkg-1.0.0.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/@scope%2fpkg/-/@scope%2fpkg-1.0.0.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://mirror.example.com/artifactory/api/npm/npm-remote/lodash/-/lodash-4.17.21.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": null,
+    "name": "lodash",
+    "version": "4.17.21"
+   },
+   "purl": "pkg:npm/lodash@4.17.21"
+  },
+  {
+   "url": "https://mirror.example.com/@org-proxy/lodash/-/lodash-4.17.21.tgz",
+   "pkg": {
+    "ecosystem": "npm",
+    "namespace": "@org-proxy",
+    "name": "lodash",
+    "version": "4.17.21"
+   },
+   "purl": "pkg:npm/%40org-proxy/lodash@4.17.21"
+  },
+  {
+   "url": "https://registry.npmjs.org/lodash",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.zip",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/lodash/-/other-4.17.21.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/lodash/-/lodash-.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/@/x/-/x-1.0.0.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://registry.npmjs.org/%E0%A4%A/-/x-1.0.0.tgz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/requests-2.31.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "requests",
+    "version": "2.31.0"
+   },
+   "purl": "pkg:pypi/requests@2.31.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/requests-2.31.0-py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "requests",
+    "version": "2.31.0"
+   },
+   "purl": "pkg:pypi/requests@2.31.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/Flask_Cors-4.0.0-py2.py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "Flask_Cors",
+    "version": "4.0.0"
+   },
+   "purl": "pkg:pypi/flask-cors@4.0.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/typing_extensions-4.9.0-1-py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "typing_extensions",
+    "version": "4.9.0"
+   },
+   "purl": "pkg:pypi/typing-extensions@4.9.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/numpy-1.26.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "numpy",
+    "version": "1.26.0"
+   },
+   "purl": "pkg:pypi/numpy@1.26.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1!2.0-py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1!2.0"
+   },
+   "purl": "pkg:pypi/foo@1!2.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0%2Blocal-py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0+local"
+   },
+   "purl": "pkg:pypi/foo@1.0%2Blocal"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.zip",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/foo@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.bz2",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/foo@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.xz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/foo@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.gz#sha256=00",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/foo@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0-py3-none-any.whl.metadata",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.gz.asc",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/evilpkg-1.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "evilpkg",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/evilpkg@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef%2Fevilpkg-1.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "ef/evilpkg",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/ef%2Fevilpkg@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef%2Fevilpkg%2F..%2Fevilpkg-1.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "ef/evilpkg/../evilpkg",
+    "version": "1.0"
+   },
+   "purl": "pkg:pypi/ef%2Fevilpkg%2F-%2Fevilpkg@1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0-1.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo-1.0",
+    "version": "1"
+   },
+   "purl": "pkg:pypi/foo-1-0@1"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-bar-1.0-1.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo-bar-1.0",
+    "version": "1"
+   },
+   "purl": "pkg:pypi/foo-bar-1-0@1"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0-rc1.tar.gz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0-evil.tar.gz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-bar-1.0-py3-none-any.whl",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "foo",
+    "version": "bar"
+   },
+   "purl": "pkg:pypi/foo@bar"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.TAR.GZ",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0-py3-none-any.WHL",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef/ZENNITTTS-0.1.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "ZENNITTTS",
+    "version": "0.1.0"
+   },
+   "purl": "pkg:pypi/zennittts@0.1.0"
+  },
+  {
+   "url": "https://files.pythonhosted.org/packages/ab/cd/ef//zennittts-0.1.0.tar.gz",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "zennittts",
+    "version": "0.1.0"
+   },
+   "purl": "pkg:pypi/zennittts@0.1.0"
+  },
+  {
+   "url": "https://mirror.example.com/simple/foo/foo-1.0.tar.gz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://mirror.example.com/root/pypi/+f/abc/def/foo-1.0.tar.gz",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://proxy.golang.org/github.com/foo/packages/bar/@v/v0.0.0-20210101000000-0123456789ab.zip",
+   "pkg": {
+    "ecosystem": "pypi",
+    "namespace": null,
+    "name": "v0.0.0-20210101000000",
+    "version": "0123456789ab"
+   },
+   "purl": "pkg:pypi/v0-0-0-20210101000000@0123456789ab"
+  },
+  {
+   "url": "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.zip",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://rubygems.org/gems/rake-13.0.6.gem",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://static.crates.io/crates/serde/serde-1.0.200.crate",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "https://example.com/",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "not a url",
+   "pkg": null,
+   "purl": null
+  },
+  {
+   "url": "",
+   "pkg": null,
+   "purl": null
+  }
+ ],
+ "names": {
+  "npm": [
+   {
+    "name": "lodash",
+    "normalized": "lodash",
+    "key": "npm:lodash",
+    "block": "override:block:npm:lodash",
+    "allow": "override:allow:npm:lodash"
+   },
+   {
+    "name": "Lodash",
+    "normalized": "lodash",
+    "key": "npm:lodash",
+    "block": "override:block:npm:lodash",
+    "allow": "override:allow:npm:lodash"
+   },
+   {
+    "name": "  lodash  ",
+    "normalized": "lodash",
+    "key": "npm:lodash",
+    "block": "override:block:npm:lodash",
+    "allow": "override:allow:npm:lodash"
+   },
+   {
+    "name": "@babel/core",
+    "normalized": "@babel/core",
+    "key": "npm:@babel/core",
+    "block": "override:block:npm:@babel/core",
+    "allow": "override:allow:npm:@babel/core"
+   },
+   {
+    "name": "@Babel/Core",
+    "normalized": "@babel/core",
+    "key": "npm:@babel/core",
+    "block": "override:block:npm:@babel/core",
+    "allow": "override:allow:npm:@babel/core"
+   },
+   {
+    "name": "@scope/pkg",
+    "normalized": "@scope/pkg",
+    "key": "npm:@scope/pkg",
+    "block": "override:block:npm:@scope/pkg",
+    "allow": "override:allow:npm:@scope/pkg"
+   },
+   {
+    "name": "event-stream",
+    "normalized": "event-stream",
+    "key": "npm:event-stream",
+    "block": "override:block:npm:event-stream",
+    "allow": "override:allow:npm:event-stream"
+   },
+   {
+    "name": "a",
+    "normalized": "a",
+    "key": "npm:a",
+    "block": "override:block:npm:a",
+    "allow": "override:allow:npm:a"
+   },
+   {
+    "name": "JSONStream",
+    "normalized": "jsonstream",
+    "key": "npm:jsonstream",
+    "block": "override:block:npm:jsonstream",
+    "allow": "override:allow:npm:jsonstream"
+   },
+   {
+    "name": "Flask_Cors",
+    "normalized": "flask_cors",
+    "key": "npm:flask_cors",
+    "block": "override:block:npm:flask_cors",
+    "allow": "override:allow:npm:flask_cors"
+   },
+   {
+    "name": "Foo.Bar__baz-Qux",
+    "normalized": "foo.bar__baz-qux",
+    "key": "npm:foo.bar__baz-qux",
+    "block": "override:block:npm:foo.bar__baz-qux",
+    "allow": "override:allow:npm:foo.bar__baz-qux"
+   },
+   {
+    "name": "foo--bar",
+    "normalized": "foo--bar",
+    "key": "npm:foo--bar",
+    "block": "override:block:npm:foo--bar",
+    "allow": "override:allow:npm:foo--bar"
+   },
+   {
+    "name": "foo_bar",
+    "normalized": "foo_bar",
+    "key": "npm:foo_bar",
+    "block": "override:block:npm:foo_bar",
+    "allow": "override:allow:npm:foo_bar"
+   },
+   {
+    "name": "foo.bar",
+    "normalized": "foo.bar",
+    "key": "npm:foo.bar",
+    "block": "override:block:npm:foo.bar",
+    "allow": "override:allow:npm:foo.bar"
+   },
+   {
+    "name": "ZENNITTTS",
+    "normalized": "zennittts",
+    "key": "npm:zennittts",
+    "block": "override:block:npm:zennittts",
+    "allow": "override:allow:npm:zennittts"
+   },
+   {
+    "name": "typing_extensions",
+    "normalized": "typing_extensions",
+    "key": "npm:typing_extensions",
+    "block": "override:block:npm:typing_extensions",
+    "allow": "override:allow:npm:typing_extensions"
+   },
+   {
+    "name": "xxxxxxxx…(200)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": "npm:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "block": "override:block:npm:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "allow": "override:allow:npm:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   {
+    "name": "xxxxxxxx…(507)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": "npm:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "block": null,
+    "allow": null
+   },
+   {
+    "name": "xxxxxxxx…(508)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": "npm:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "block": null,
+    "allow": null
+   },
+   {
+    "name": "é",
+    "normalized": "é",
+    "key": "npm:é",
+    "block": "override:block:npm:é",
+    "allow": "override:allow:npm:é"
+   },
+   {
+    "name": "‮gnp",
+    "normalized": "‮gnp",
+    "key": "npm:‮gnp",
+    "block": "override:block:npm:‮gnp",
+    "allow": "override:allow:npm:‮gnp"
+   },
+   {
+    "name": "a/b",
+    "normalized": "a/b",
+    "key": "npm:a/b",
+    "block": "override:block:npm:a/b",
+    "allow": "override:allow:npm:a/b"
+   },
+   {
+    "name": "..",
+    "normalized": "..",
+    "key": "npm:..",
+    "block": "override:block:npm:..",
+    "allow": "override:allow:npm:.."
+   },
+   {
+    "name": "",
+    "normalized": "",
+    "key": "npm:",
+    "block": "override:block:npm:",
+    "allow": "override:allow:npm:"
+   }
+  ],
+  "pypi": [
+   {
+    "name": "lodash",
+    "normalized": "lodash",
+    "key": "pypi:lodash",
+    "block": "override:block:pypi:lodash",
+    "allow": "override:allow:pypi:lodash"
+   },
+   {
+    "name": "Lodash",
+    "normalized": "lodash",
+    "key": "pypi:lodash",
+    "block": "override:block:pypi:lodash",
+    "allow": "override:allow:pypi:lodash"
+   },
+   {
+    "name": "  lodash  ",
+    "normalized": "lodash",
+    "key": "pypi:lodash",
+    "block": "override:block:pypi:lodash",
+    "allow": "override:allow:pypi:lodash"
+   },
+   {
+    "name": "@babel/core",
+    "normalized": "@babel/core",
+    "key": "pypi:@babel/core",
+    "block": "override:block:pypi:@babel/core",
+    "allow": "override:allow:pypi:@babel/core"
+   },
+   {
+    "name": "@Babel/Core",
+    "normalized": "@babel/core",
+    "key": "pypi:@babel/core",
+    "block": "override:block:pypi:@babel/core",
+    "allow": "override:allow:pypi:@babel/core"
+   },
+   {
+    "name": "@scope/pkg",
+    "normalized": "@scope/pkg",
+    "key": "pypi:@scope/pkg",
+    "block": "override:block:pypi:@scope/pkg",
+    "allow": "override:allow:pypi:@scope/pkg"
+   },
+   {
+    "name": "event-stream",
+    "normalized": "event-stream",
+    "key": "pypi:event-stream",
+    "block": "override:block:pypi:event-stream",
+    "allow": "override:allow:pypi:event-stream"
+   },
+   {
+    "name": "a",
+    "normalized": "a",
+    "key": "pypi:a",
+    "block": "override:block:pypi:a",
+    "allow": "override:allow:pypi:a"
+   },
+   {
+    "name": "JSONStream",
+    "normalized": "jsonstream",
+    "key": "pypi:jsonstream",
+    "block": "override:block:pypi:jsonstream",
+    "allow": "override:allow:pypi:jsonstream"
+   },
+   {
+    "name": "Flask_Cors",
+    "normalized": "flask-cors",
+    "key": "pypi:flask-cors",
+    "block": "override:block:pypi:flask-cors",
+    "allow": "override:allow:pypi:flask-cors"
+   },
+   {
+    "name": "Foo.Bar__baz-Qux",
+    "normalized": "foo-bar-baz-qux",
+    "key": "pypi:foo-bar-baz-qux",
+    "block": "override:block:pypi:foo-bar-baz-qux",
+    "allow": "override:allow:pypi:foo-bar-baz-qux"
+   },
+   {
+    "name": "foo--bar",
+    "normalized": "foo-bar",
+    "key": "pypi:foo-bar",
+    "block": "override:block:pypi:foo-bar",
+    "allow": "override:allow:pypi:foo-bar"
+   },
+   {
+    "name": "foo_bar",
+    "normalized": "foo-bar",
+    "key": "pypi:foo-bar",
+    "block": "override:block:pypi:foo-bar",
+    "allow": "override:allow:pypi:foo-bar"
+   },
+   {
+    "name": "foo.bar",
+    "normalized": "foo-bar",
+    "key": "pypi:foo-bar",
+    "block": "override:block:pypi:foo-bar",
+    "allow": "override:allow:pypi:foo-bar"
+   },
+   {
+    "name": "ZENNITTTS",
+    "normalized": "zennittts",
+    "key": "pypi:zennittts",
+    "block": "override:block:pypi:zennittts",
+    "allow": "override:allow:pypi:zennittts"
+   },
+   {
+    "name": "typing_extensions",
+    "normalized": "typing-extensions",
+    "key": "pypi:typing-extensions",
+    "block": "override:block:pypi:typing-extensions",
+    "allow": "override:allow:pypi:typing-extensions"
+   },
+   {
+    "name": "xxxxxxxx…(200)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": "pypi:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "block": "override:block:pypi:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "allow": "override:allow:pypi:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   {
+    "name": "xxxxxxxx…(507)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": "pypi:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "block": null,
+    "allow": null
+   },
+   {
+    "name": "xxxxxxxx…(508)",
+    "normalized": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "key": null,
+    "block": null,
+    "allow": null
+   },
+   {
+    "name": "é",
+    "normalized": "é",
+    "key": "pypi:é",
+    "block": "override:block:pypi:é",
+    "allow": "override:allow:pypi:é"
+   },
+   {
+    "name": "‮gnp",
+    "normalized": "‮gnp",
+    "key": "pypi:‮gnp",
+    "block": "override:block:pypi:‮gnp",
+    "allow": "override:allow:pypi:‮gnp"
+   },
+   {
+    "name": "a/b",
+    "normalized": "a/b",
+    "key": "pypi:a/b",
+    "block": "override:block:pypi:a/b",
+    "allow": "override:allow:pypi:a/b"
+   },
+   {
+    "name": "..",
+    "normalized": "-",
+    "key": "pypi:-",
+    "block": "override:block:pypi:-",
+    "allow": "override:allow:pypi:-"
+   },
+   {
+    "name": "",
+    "normalized": "",
+    "key": "pypi:",
+    "block": "override:block:pypi:",
+    "allow": "override:allow:pypi:"
+   }
+  ]
+ },
+ "compare": {
+  "npm": [
+   "=<<<<<<<<<<<<<<?????????><",
+   ">=<<<<>>>>>>===?????????><",
+   ">>=<<<>>>>>>>>>?????????><",
+   ">>>=<<>>>>>>>>>?????????><",
+   ">>>>=<>>>>>>>>>?????????>=",
+   ">>>>>=>>>>>>>>>?????????>>",
+   "><<<<<=<<<><<<<?????????><",
+   "><<<<<>=<<><<<<?????????><",
+   "><<<<<>>=<><<<<?????????><",
+   "><<<<<>>>=><<<<?????????><",
+   "><<<<<<<<<=<<<<?????????><",
+   "><<<<<>>>>>=<<<?????????><",
+   ">=<<<<>>>>>>===?????????><",
+   ">=<<<<>>>>>>===?????????><",
+   ">=<<<<>>>>>>===?????????><",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "??????????????????????????",
+   "<<<<<<<<<<<<<<<?????????=<",
+   ">>>>=<>>>>>>>>>?????????>="
+  ],
+  "pypi": [
+   "=<<<<<<<<<<<<<<<<<?<??<???<<",
+   ">==<<<<>>>><<<<<=<?=??=???>>",
+   ">==<<<<>>>><<<<<=<?=??=???>>",
+   ">>>=<<<>>>>><<>>>>?>??>???>>",
+   ">>>>=<<>>>>><<>>>>?>??>???>>",
+   ">>>>>=<>>>>><<>>>>?>??>???>>",
+   ">>>>>>=>>>>><<>>>>?>??>???>>",
+   "><<<<<<=<<><<<<<<<?<??<???=<",
+   "><<<<<<>=<><<<<<<<?<??<???><",
+   "><<<<<<>>=><<<<<<<?<??<???>=",
+   "><<<<<<<<<=<<<<<<<?<??<???<<",
+   ">>><<<<>>>>=<<>>>=?>??>???>>",
+   ">>>>>>>>>>>>=<>>>>?>??>???>>",
+   ">>>>>>>>>>>>>=>>>>?>??>???>>",
+   ">>><<<<>>>><<<=<><?>??>???>>",
+   ">>><<<<>>>><<<>=><?>??>???>>",
+   ">==<<<<>>>><<<<<=<?=??=???>>",
+   ">>><<<<>>>>=<<>>>=?>??>???>>",
+   "????????????????????????????",
+   ">==<<<<>>>><<<<<=<?=??=???>>",
+   "????????????????????????????",
+   "????????????????????????????",
+   ">==<<<<>>>><<<<<=<?=??=???>>",
+   "????????????????????????????",
+   "????????????????????????????",
+   "????????????????????????????",
+   "><<<<<<=<<><<<<<<<?<??<???=<",
+   "><<<<<<>>=><<<<<<<?<??<???>="
+  ]
+ },
+ "match": {
+  "npm": [
+   "11111111111111100000000011",
+   "11000011111111100000000010",
+   "00000000000000000000000000",
+   "00000000000000000000000000",
+   "11110100000011100000000000",
+   "01000000000011101000000000",
+   "11111111111111111111111111",
+   "00000000000000000000000000"
+  ],
+  "pypi": [
+   "1111111111111111110100100011",
+   "1110000111110011110100100011",
+   "0111000000010011110100100000",
+   "0000000000000000000000000000",
+   "0111101000011111110100100000",
+   "0110000000000000100100100000",
+   "1111111111111111111111111111",
+   "0000000000000000000000000000"
+  ]
+ },
+ "distill": [
+  {
+   "id": "GHSA-35jh-r3h4-6jhm",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-35jh-r3h4-6jhm",
+     "packageName": "lodash",
+     "namespace": null,
+     "kind": "vulnerability",
+     "severity": "HIGH",
+     "summary": "Command Injection in lodash",
+     "cweIds": [
+      "CWE-77",
+      "CWE-94"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "4.17.21"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2026-10-17T02:55:38.085813876Z"
+    },
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-35jh-r3h4-6jhm",
+     "packageName": "lodash-es",
+     "namespace": null,
+     "kind": "vulnerability",
+     "severity": "HIGH",
+     "summary": "Command Injection in lodash",
+     "cweIds": [
+      "CWE-77",
+      "CWE-94"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "4.17.21"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2026-10-17T02:55:38.085813876Z"
+    },
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-35jh-r3h4-6jhm",
+     "packageName": "lodash.template",
+     "namespace": null,
+     "kind": "vulnerability",
+     "severity": "HIGH",
+     "summary": "Command Injection in lodash",
+     "cweIds": [
+      "CWE-77",
+      "CWE-94"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "last_affected": "4.5.0"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2026-10-17T02:55:38.085813876Z"
+    },
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-35jh-r3h4-6jhm",
+     "packageName": "lodash-template",
+     "namespace": null,
+     "kind": "vulnerability",
+     "severity": "HIGH",
+     "summary": "Command Injection in lodash",
+     "cweIds": [
+      "CWE-77",
+      "CWE-94"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "last_affected": "1.0.0"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2026-10-17T02:55:38.085813876Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "GHSA-35jh-r3h4-6jhm",
+     "lodash",
+     null,
+     "vulnerability",
+     "CWE-77,CWE-94",
+     "HIGH",
+     "Command Injection in lodash",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"fixed\":\"4.17.21\"}]],\"v\":[]}",
+     0,
+     "2026-10-17T02:55:38.085813876Z"
+    ],
+    [
+     "npm",
+     "GHSA-35jh-r3h4-6jhm",
+     "lodash-es",
+     null,
+     "vulnerability",
+     "CWE-77,CWE-94",
+     "HIGH",
+     "Command Injection in lodash",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"fixed\":\"4.17.21\"}]],\"v\":[]}",
+     0,
+     "2026-10-17T02:55:38.085813876Z"
+    ],
+    [
+     "npm",
+     "GHSA-35jh-r3h4-6jhm",
+     "lodash.template",
+     null,
+     "vulnerability",
+     "CWE-77,CWE-94",
+     "HIGH",
+     "Command Injection in lodash",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"last_affected\":\"4.5.0\"}]],\"v\":[]}",
+     0,
+     "2026-10-17T02:55:38.085813876Z"
+    ],
+    [
+     "npm",
+     "GHSA-35jh-r3h4-6jhm",
+     "lodash-template",
+     null,
+     "vulnerability",
+     "CWE-77,CWE-94",
+     "HIGH",
+     "Command Injection in lodash",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"last_affected\":\"1.0.0\"}]],\"v\":[]}",
+     0,
+     "2026-10-17T02:55:38.085813876Z"
+    ]
+   ]
+  },
+  {
+   "id": "GHSA-394c-5j6w-4xmx",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-394c-5j6w-4xmx",
+     "packageName": "ua-parser-js",
+     "namespace": null,
+     "kind": "vulnerability",
+     "severity": "HIGH",
+     "summary": "ua-parser-js Regular Expression Denial of Service vulnerability",
+     "cweIds": [
+      "CWE-400"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "fixed": "0.7.23"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2025-01-14T08:56:58.344848Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "GHSA-394c-5j6w-4xmx",
+     "ua-parser-js",
+     null,
+     "vulnerability",
+     "CWE-400",
+     "HIGH",
+     "ua-parser-js Regular Expression Denial of Service vulnerability",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"fixed\":\"0.7.23\"}]],\"v\":[]}",
+     0,
+     "2025-01-14T08:56:58.344848Z"
+    ]
+   ]
+  },
+  {
+   "id": "GHSA-4g82-3jcr-q52w",
+   "rows": [
+    {
+     "ecosystem": "pypi",
+     "osvId": "GHSA-4g82-3jcr-q52w",
+     "packageName": "ctx",
+     "namespace": null,
+     "kind": "malware",
+     "severity": "CRITICAL",
+     "summary": "Malware in ctx",
+     "cweIds": [
+      "CWE-912"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        },
+        {
+         "last_affected": "0.1.4"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2022-05-25T23:09:55Z"
+    }
+   ],
+   "columns": [
+    [
+     "pypi",
+     "GHSA-4g82-3jcr-q52w",
+     "ctx",
+     null,
+     "malware",
+     "CWE-912",
+     "CRITICAL",
+     "Malware in ctx",
+     "{\"r\":[[{\"introduced\":\"0\"},{\"last_affected\":\"0.1.4\"}]],\"v\":[]}",
+     0,
+     "2022-05-25T23:09:55Z"
+    ]
+   ]
+  },
+  {
+   "id": "GHSA-73qr-pfmq-6rp8",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-73qr-pfmq-6rp8",
+     "packageName": "coa",
+     "namespace": null,
+     "kind": "malware",
+     "severity": "CRITICAL",
+     "summary": "Embedded malware in coa",
+     "cweIds": [
+      "CWE-506"
+     ],
+     "spec": {
+      "r": [],
+      "v": [
+       "2.0.3",
+       "2.0.4",
+       "2.1.1",
+       "2.1.3",
+       "3.0.1",
+       "3.1.3"
+      ]
+     },
+     "withdrawn": false,
+     "modified": "2022-09-07T22:16:29Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "GHSA-73qr-pfmq-6rp8",
+     "coa",
+     null,
+     "malware",
+     "CWE-506",
+     "CRITICAL",
+     "Embedded malware in coa",
+     "{\"r\":[],\"v\":[\"2.0.3\",\"2.0.4\",\"2.1.1\",\"2.1.3\",\"3.0.1\",\"3.1.3\"]}",
+     0,
+     "2022-09-07T22:16:29Z"
+    ]
+   ]
+  },
+  {
+   "id": "GHSA-mh6f-8j2x-4483",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-mh6f-8j2x-4483",
+     "packageName": "event-stream",
+     "namespace": null,
+     "kind": "malware",
+     "severity": "CRITICAL",
+     "summary": "Critical severity vulnerability that affects event-stream and flatmap-stream",
+     "cweIds": [
+      "CWE-506"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "3.3.6"
+        },
+        {
+         "fixed": "4.0.0"
+        }
+       ]
+      ],
+      "v": [
+       "3.3.6"
+      ]
+     },
+     "withdrawn": false,
+     "modified": "2021-09-15T20:08:26Z"
+    },
+    {
+     "ecosystem": "npm",
+     "osvId": "GHSA-mh6f-8j2x-4483",
+     "packageName": "flatmap-stream",
+     "namespace": null,
+     "kind": "malware",
+     "severity": "CRITICAL",
+     "summary": "Critical severity vulnerability that affects event-stream and flatmap-stream",
+     "cweIds": [
+      "CWE-506"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "0"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2021-09-15T20:08:26Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "GHSA-mh6f-8j2x-4483",
+     "event-stream",
+     null,
+     "malware",
+     "CWE-506",
+     "CRITICAL",
+     "Critical severity vulnerability that affects event-stream and flatmap-stream",
+     "{\"r\":[[{\"introduced\":\"3.3.6\"},{\"fixed\":\"4.0.0\"}]],\"v\":[\"3.3.6\"]}",
+     0,
+     "2021-09-15T20:08:26Z"
+    ],
+    [
+     "npm",
+     "GHSA-mh6f-8j2x-4483",
+     "flatmap-stream",
+     null,
+     "malware",
+     "CWE-506",
+     "CRITICAL",
+     "Critical severity vulnerability that affects event-stream and flatmap-stream",
+     "{\"r\":[[{\"introduced\":\"0\"}]],\"v\":[]}",
+     0,
+     "2021-09-15T20:08:26Z"
+    ]
+   ]
+  },
+  {
+   "id": "MAL-2024-11183",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "MAL-2024-11183",
+     "packageName": "@solana/web3.js",
+     "namespace": "@solana",
+     "kind": "malware",
+     "severity": null,
+     "summary": "Malicious code in @solana/web3.js (npm)",
+     "cweIds": [
+      "CWE-506"
+     ],
+     "spec": {
+      "r": [
+       [
+        {
+         "introduced": "1.95.6"
+        },
+        {
+         "fixed": "1.95.8"
+        }
+       ]
+      ],
+      "v": []
+     },
+     "withdrawn": false,
+     "modified": "2026-01-22T21:34:45.238703Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "MAL-2024-11183",
+     "@solana/web3.js",
+     "@solana",
+     "malware",
+     "CWE-506",
+     null,
+     "Malicious code in @solana/web3.js (npm)",
+     "{\"r\":[[{\"introduced\":\"1.95.6\"},{\"fixed\":\"1.95.8\"}]],\"v\":[]}",
+     0,
+     "2026-01-22T21:34:45.238703Z"
+    ]
+   ]
+  },
+  {
+   "id": "MAL-2026-3744",
+   "rows": [
+    {
+     "ecosystem": "npm",
+     "osvId": "MAL-2026-3744",
+     "packageName": "node-ipc",
+     "namespace": null,
+     "kind": "malware",
+     "severity": null,
+     "summary": "Malicious code in node-ipc (npm)",
+     "cweIds": [
+      "CWE-506"
+     ],
+     "spec": {
+      "r": [],
+      "v": [
+       "9.1.6",
+       "9.2.3",
+       "12.0.1"
+      ]
+     },
+     "withdrawn": false,
+     "modified": "2026-05-29T23:01:59.558681573Z"
+    }
+   ],
+   "columns": [
+    [
+     "npm",
+     "MAL-2026-3744",
+     "node-ipc",
+     null,
+     "malware",
+     "CWE-506",
+     null,
+     "Malicious code in node-ipc (npm)",
+     "{\"r\":[],\"v\":[\"9.1.6\",\"9.2.3\",\"12.0.1\"]}",
+     0,
+     "2026-05-29T23:01:59.558681573Z"
+    ]
+   ]
+  }
+ ],
+ "messages": [
+  {
+   "malware": {
+    "text": "🚨 *Malicious package detected*\n`left-pad@1.3.0` (npm) — *blocked*\nUser: `dev@example.com`\nReference: `PG-ABCDEF`\nAdvisories: <https://osv.dev/vulnerability/MAL-1|MAL-1>, <https://osv.dev/vulnerability/GHSA-x|GHSA-x>"
+   },
+   "observed": {
+    "text": "🚨 *Malicious package on the block list*\n`left-pad` (npm) — *observed, not blocked* (enforcement is off)\nUser: `unknown`"
+   },
+   "override": {
+    "text": "🔧 *Allow override added*\n`left-pad` (npm), versions `1.0.0`\nBy `a@example.com`\nNote: n"
+   }
+  },
+  {
+   "malware": {
+    "text": "🚨 *Malicious package detected*\n`left-pad@1.3.0` (PyPI) — *blocked*\nUser: `dev@example.com`\nReference: `PG-ABCDEF`\nAdvisories: <https://osv.dev/vulnerability/MAL-1|MAL-1>, <https://osv.dev/vulnerability/GHSA-x|GHSA-x>"
+   },
+   "observed": {
+    "text": "🚨 *Malicious package on the block list*\n`left-pad` (PyPI) — *observed, not blocked* (enforcement is off)\nUser: `unknown`"
+   },
+   "override": {
+    "text": "🔧 *Allow override added*\n`left-pad` (PyPI), versions `1.0.0`\nBy `a@example.com`\nNote: n"
+   }
+  }
+ ]
+}
