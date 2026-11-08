@@ -35,7 +35,7 @@ Everything marked *measured* was taken from the live OSV feeds and registries on
 Three things drive the plan, and each is argued with data below:
 
 1. **The code is small; the unknowns are in the clients and in Gateway.** Each new ecosystem needs a real toolchain exercised behind Gateway, because what a blocked developer sees differs per client.
-2. **Two of the four cannot reuse `compareSemver`**, and the failure would be silent: a quarter of NuGet and RubyGems version strings do not parse as SemVer, and the matcher's rule is that an unparseable version never matches.
+2. **NuGet and RubyGems cannot reuse `compareSemver`.** The measured cost of getting it wrong is smaller than it first looked, and falls on vulnerability flagging, not on malware blocking: no malware advisory in any of the four feeds depends on a version boundary the SemVer comparator cannot read (see [Versions](#versions-two-comparators-cannot-reuse-comparesemver)).
 3. **Name identity differs in all four**, and getting it wrong either misses real malware (NuGet) or merges distinct packages (RubyGems, Go).
 
 ## What each ecosystem buys
@@ -87,20 +87,32 @@ Why this matters:
 
 ### Versions: two comparators cannot reuse `compareSemver`
 
-`compareSemver` returns `null` for a string `semver.parse` rejects, and the matcher treats `null` as "never matches" (`packages/core/src/osv/match.ts`). So an unsupported version shape is not an error; it is a silent non-match.
+`compareSemver` returns `null` for a string `semver.parse` rejects, and the matcher treats `null` as "never matches" (`packages/core/src/osv/match.ts`). What that costs depends on where the unreadable string sits in an advisory:
 
-*Measured*, counting every version string in each feed (range events and explicit lists, excluding the sentinel `"0"`) that `semver.parse` rejects:
+- **A range boundary** (`introduced`, `fixed`, `last_affected`). The comparator cannot place the version being checked against it, so **the whole range never matches**. An advisory with `fixed: "1.90"` flags nothing below it.
+- **An explicit `versions` list.** The matcher checks string equality first, so the identical string still matches. Only a differently written equal version would miss.
 
-| Ecosystem | Rejected | Of | Share | Examples | Verdict |
-|---|---:|---:|---:|---|---|
-| NuGet | 139,393 | 528,976 | **26.4%** | `6.8.5.1001`, `1.2.6.62716-preview` | Needs its own comparator |
-| RubyGems | 21,886 | 89,049 | **24.6%** | `3.0.4.1`, `1.5.0.beta.1` | Needs its own comparator |
-| Go | 72 | 20,466 | 0.4% | `0.46`, `136`, `4.072` | Reuse, after reviewing the residue |
-| Cargo | 12 | 6,475 | 0.2% | `0.65`, `0.20`, `0.1` | Reuse, after reviewing the residue |
+*Measured* with `bootstrap census` for npm and PyPI, and with the repository's `semver` dependency for the four candidates (every string in each feed, excluding OSV's `"0"` for "the beginning of time"):
+
+| Ecosystem | Unreadable range boundaries | Of those, in malware advisories | Unreadable listed versions |
+|---|---:|---:|---:|
+| NuGet | 84 of 11,375 (0.7%) | **0** | 139,309 of 517,601 (26.9%) |
+| RubyGems | 512 of 2,927 (**17.5%**) | **0** | 21,371 of 86,123 (24.8%) |
+| Go | 68 of 20,266 (0.3%) | **0** | 4 of 200 (2.0%) |
+| Cargo | 10 of 6,343 (0.2%) | **0** | 2 of 132 (1.5%) |
+| *npm (today)* | 30 of 16,667 (0.2%) | **0** | 2 of 54,562 |
+| *PyPI (today)* | 53 of 34,204 (0.2%) | **0** | 2,843 of 1,457,499 (0.2%) |
+
+What this says:
+
+- **Blocking malware does not depend on the new comparators.** Across all six ecosystems, no unreadable range boundary sits in a malware advisory. Malware records match through a listed version or through "every version", neither of which needs ordering.
+- **Flagging vulnerabilities does.** RubyGems is the clear case: 17.5% of its range boundaries (for example `3.0.4.1`, `1.5.0.beta.1`) cannot be read by the SemVer comparator, so those ranges never flag. NuGet's range boundaries are mostly readable (0.7%).
+- **The listed-version figure still matters for NuGet**, in a different way. NuGet's URL carries a *normalised* version (a fourth zero part dropped, build metadata removed), so a listed `1.0.0.0` and a URL `1.0.0` are the same version written two ways, and only a NuGet comparator knows it.
+- **This corrects an earlier version of this document,** which counted both kinds together (26.4% for NuGet, 24.6% for RubyGems) and described all of it as a silent miss.
 
 Also *measured*, with the repository's `semver` dependency: it accepts the `v` prefix, accepts `+incompatible` build metadata (equal to the bare version), and accepts Go pseudo-versions (`v0.0.0-20210101000000-abcdef123456`). It compares prerelease labels case-sensitively (`1.0.0-RC1` is not equal to `1.0.0-rc1`), which NuGet does not.
 
-Go and Cargo's residue (72 and 12 strings) are OSV-side range boundaries that are not valid SemVer. A range with an unparseable boundary never matches, so those advisories are silently inert. Whether to coerce them (`0.65` to `0.65.0`), on the OSV side only, is a decision: see [Decisions needed](#decisions-needed).
+Cargo's and Go's unreadable boundaries (10 and 68) are OSV-side strings that are not valid SemVer, such as `0.65`. Whether to coerce them on the OSV side only is a decision: see [Decisions needed](#decisions-needed).
 
 ### RubyGems: the name/version split is ambiguous, in both directions
 
@@ -431,7 +443,7 @@ Each phase is finished only when all of this is true for the ecosystem:
 | 1 | Go: match module paths case-sensitively | **Exact.** Go treats the case variants as different modules and OSV lists them separately; folding would merge distinct packages. A mismatched-case path would also fail a build, so exact matching leaves no practical bypass. |
 | 2 | RubyGems: fold `-` and `_` | **No.** 23 distinct gems differ only by that character. |
 | 3 | Cargo: fold `-` and `_` | **Yes**, together with case; crates.io treats them as one name. |
-| 4 | OSV-side version strings that are not valid SemVer (Cargo 12, Go 72) | Review each. Prefer coercing a clearly truncated version (`0.65` to `0.65.0`) on the OSV side only, with a test, over leaving the advisory silently inert. Never coerce the version of a package being downloaded. |
+| 4 | OSV-side range boundaries that are not valid SemVer (Cargo 10, Go 68; none in malware advisories) | Review each. Prefer coercing a clearly truncated version (`0.65` to `0.65.0`) on the OSV side only, with a test, over leaving the range inert. Never coerce the version of a package being downloaded. |
 | 5 | RubyGems: platform in matching | **Ignore the platform.** An advisory applies to every build of a version. |
 | 6 | Per-ecosystem observe-only setting | **Yes**, as above. It lets each ecosystem collect real traffic before it can block anyone. |
 | 7 | Forward rule name | **Keep it stable**, or make `findRule` accept both names. Either way, the `traffic` expression is what changes. |
@@ -444,7 +456,7 @@ Each phase is finished only when all of this is true for the ecosystem:
 | Gateway does not classify a client's real URL shape | The Forward rule never fires; no Worker change can help | The Cargo spike first, and the same activity-log check at the start of every ecosystem |
 | Gateway's ecosystem strings for RubyGems, Go and NuGet differ from the ids | A rule matching a string Gateway never emits silently matches nothing | Read `PackageInfo.Ecosystem` from the log before writing the expression |
 | A client does not trust the inspection certificate | Installs fail for the user, which looks like an outage | Per-client trust preflight, recorded in the demo notes |
-| Unparseable version silently inert | Advisories that never match | The census gate, the differential fixtures, and the explicit `null` handling already in `match.ts` |
+| Unreadable range boundary leaves a range inert | A vulnerability advisory that never flags (none in a malware advisory, measured) | The census gate, which now separates boundaries from listed versions, the differential fixtures, and the explicit `null` handling already in `match.ts` |
 | Candidate explosion for RubyGems | Extra KV reads and live OSV queries | Cap the candidates; short-circuit on the first block; live queries are already negative-cached |
 | False positive across a wider surface | More ecosystems, more ways to block a legitimate install | Observe-only first; the existing allow override and the `ENFORCE` kill switch both take effect in seconds |
 | Mirrors that Gateway classifies by URL shape | The Worker's parser must agree with Gateway's, including for path prefixes | The unparsed-request log line is the only signal; watch it after each widening |
