@@ -135,7 +135,7 @@ Cloudflare's documented Cargo shape is `/crates/{name}/{name}-{version}.crate`. 
 - `static.crates.io/crates/serde/serde-1.0.200.crate` returns 200, and `crates.io/api/v1/crates/serde/1.0.200/download` redirects (302) to that shape.
 - The index's `config.json` is `{"dl": "https://static.crates.io/crates", ...}` with no URL markers. The Cargo Book says a `dl` without markers makes Cargo request `{dl}/{crate}/{version}/download`; that is from its documentation, not something observed here. That shape does return 200 on `static.crates.io` (measured), but it is **not** the shape Cloudflare documents.
 
-So there are two URL shapes, and Gateway's classifier is documented for only one. Whether Gateway classifies `/{crate}/{version}/download` is **unverified and gates the Cargo phase**: if it does not, the Forward rule never fires for real `cargo` traffic, and no Worker code can fix that. See the spike in [Phase 1](#phase-1-cargo).
+So there are two URL shapes, and Gateway's classifier is documented for only one. **Settled by the spike on 2026-11-08: real `cargo` requests `/crates/{crate}/{version}/download`, and Gateway classifies both shapes as Cargo.** See [Phase 1](#phase-1-cargo).
 
 ### Failure modes in the current code that are silent
 
@@ -252,7 +252,9 @@ Where it differs from the plan above:
 2. Read the Gateway HTTP activity log for the requests. Record which URL shape the client sent, and whether `PackageInfo.Ecosystem` is populated and with what string.
 3. Repeat for the other documented shape (`curl` the `.crate` URL directly).
 
-If only the documented shape is classified and real cargo uses the other, **stop**: either widen the Forward rule's traffic selector from `pkg.ecosystem` to a host match (`http.request.host` on `static.crates.io`), which our parser then handles, or raise it with Cloudflare. Do not write the parser first.
+**Result (2026-11-08): both shapes are classified, so Phase 1 goes ahead.** Rust 1.99.1 installed into a throwaway directory on a device behind Gateway, and trusted Gateway's certificate unaided. `cargo fetch` with an empty cache requested `index.crates.io/config.json`, `index.crates.io/it/oa/itoa` and **`static.crates.io/crates/itoa/1.0.11/download`**; the index's `dl` is `https://static.crates.io/crates` with no markers. The log was not needed: a temporary Gateway block rule for `pkg.ecosystem == "cargo" and pkg.name == "itoa"`, scoped to one identity, redirected **both** the documented `.crate` URL and the real `/download` URL to the account's block page, for every version tried, while another crate (`serde`) passed. Seen from the client, a Gateway block is `error: failed to verify the checksum of itoa` (cargo received the block page where a crate should be). The temporary rule was deleted and the rule list verified identical to a snapshot taken first.
+
+Had only the documented shape been classified while real cargo used the other, the plan was to **stop**: either widen the Forward rule's traffic selector from `pkg.ecosystem` to a host match (`http.request.host` on `static.crates.io`), which our parser then handles, or raise it with Cloudflare. Do not write the parser first.
 
 | Item | Design |
 |---|---|
@@ -328,7 +330,7 @@ The path version is NuGet's normalised form (a fourth zero part dropped, build m
 ### The Gateway Forward rule
 
 - `traffic` is `pkg.ecosystem in {"npm" "pypi"}`. It becomes generated from the registry: `pkg.ecosystem in {…}` over each enabled ecosystem's `gatewayName`.
-- The documented value for Cargo is `cargo` (Cloudflare's logging page lists `npm, pypi, cargo`). The strings for RubyGems, Go and NuGet are **unverified**; read them from `PackageInfo.Ecosystem` in the activity log during each ecosystem's live phase rather than assuming `rubygems`, `go`, `nuget`.
+- **The `pkg.ecosystem` strings are measured, and two differ from the ids.** Gateway's API validates the value, so creating a disabled rule with each candidate (and deleting it at once) shows which are real: `cargo`, **`gem`** (not `rubygems`), **`golang`** (not `go`), `nuget` and `maven` are accepted; `rubygems`, `gems`, `go` and an invented value are refused with `invalid package ecosystem`. These are the registry's `gatewayName` values.
 - Widening goes through `gateway-rule sync`, after the Worker and the data are in place (see [Order of operations](#order-of-operations-for-each-ecosystem)). The rule's scope and the precedence stay as they are.
 - The rule's identity scope and the Do Not Inspect exemption must still cover the same people: the "two scopes, one audience" limitation in the README applies unchanged, now to more hosts.
 
@@ -435,7 +437,7 @@ Fill this in as each phase runs, and move the conclusions into the demo notes an
 
 | Ecosystem | URL shape requested | Classified by Gateway | `PackageInfo.Ecosystem` | Trusts the certificate unaided | Client output on 403 | Falls through on 403 |
 |---|---|---|---|---|---|---|
-| Cargo | | | | | | n/a |
+| Cargo | `static.crates.io/crates/{crate}/{version}/download` (the index's `dl` has no markers) | **Yes, both shapes** | `cargo` | **Yes** (Rust 1.99.1) | Gateway block: `failed to verify the checksum`; PkgGuard 403: *to observe* | n/a |
 | RubyGems | | | | | | n/a |
 | NuGet | | | | | | n/a |
 | Go | | | | | | |
@@ -471,7 +473,7 @@ Each phase is finished only when all of this is true for the ecosystem:
 | Risk | Why it matters | Mitigation |
 |---|---|---|
 | Gateway does not classify a client's real URL shape | The Forward rule never fires; no Worker change can help | The Cargo spike first, and the same activity-log check at the start of every ecosystem |
-| Gateway's ecosystem strings for RubyGems, Go and NuGet differ from the ids | A rule matching a string Gateway never emits silently matches nothing | Read `PackageInfo.Ecosystem` from the log before writing the expression |
+| Gateway's ecosystem strings differ from the ids | A rule matching a string Gateway never emits silently matches nothing | Resolved: measured through the API's own validation (`gem` for RubyGems, `golang` for Go); a registry test holds each `gatewayName` to it |
 | A client does not trust the inspection certificate | Installs fail for the user, which looks like an outage | Per-client trust preflight, recorded in the demo notes |
 | Unreadable range boundary leaves a range inert | A vulnerability advisory that never flags (none in a malware advisory, measured) | The census gate, which now separates boundaries from listed versions, the differential fixtures, and the explicit `null` handling already in `match.ts` |
 | Candidate explosion for RubyGems | Extra KV reads and live OSV queries | Cap the candidates; short-circuit on the first block; live queries are already negative-cached |
@@ -481,10 +483,9 @@ Each phase is finished only when all of this is true for the ecosystem:
 
 Open questions, each answered on the test device during its phase (results go in the table in [Test environment and procedure](#test-environment-and-procedure)):
 
-- How each of `gem`, `cargo`, `go` and `dotnet` renders a 403 from Gateway.
+- How each of `gem`, `cargo`, `go` and `dotnet` renders a 403 from PkgGuard. (For Cargo, a *Gateway* block shows as a checksum error; PkgGuard's own 403 is still to be observed.)
 - Whether `go` falls through to `direct` on a 403.
-- Whether Gateway classifies Cargo's `/download` shape and NuGet's v2 redirect.
-- The exact `pkg.ecosystem` strings for RubyGems, Go and NuGet.
+- Whether Gateway classifies NuGet's v2 redirect. (Cargo's `/download` shape and every ecosystem string are settled.)
 
 ## Method
 
@@ -493,6 +494,7 @@ All figures are from 2026-11-07 and can be reproduced; Phase 0's `bootstrap cens
 - **Feed sizes and record counts:** `https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/modified_id.csv` (one line per record) and a `HEAD` on `…/{ecosystem}/all.zip`.
 - **Malware, names, collisions, version shapes:** the four `all.zip` files, parsed with the repository's own malware rule (the `MAL-` prefix or CWE-506, 507, 510, 511, 912, read from record and per-package `database_specific.cwe_ids`). Collisions are counted by grouping names under each candidate normalisation.
 - **Rejected versions:** every `introduced`, `fixed`, `last_affected` (excluding `"0"`) and `versions[]` string, passed through `semver.parse` from the repository's dependency.
+- **Gateway classification and ecosystem strings:** for Cargo, a temporary block rule scoped to one identity and one package, deleted afterwards with the rule list diffed against a snapshot; for the strings, creating a *disabled* rule per candidate value and deleting it at once, since the API validates `pkg.ecosystem`.
 - **OSV ecosystem strings:** a package query to `api.osv.dev` per ecosystem, with an invalid ecosystem as the negative control (it returns `invalid ecosystem`).
 - **Registry URL behaviour:** `HEAD` requests to the public registries for the shapes above, including wrong-case and escaped variants.
 - **Whether malware is still downloadable:** for each malware record, a metadata request only (the crates.io sparse index, the RubyGems versions API, the NuGet flat-container index, the Go proxy version list). All 28 Cargo and 21 Go records, and a random 80 each for RubyGems and NuGet. No package was downloaded.
