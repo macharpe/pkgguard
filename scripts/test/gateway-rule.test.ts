@@ -254,6 +254,42 @@ describe("execute", () => {
     const r = await run("disable", { rules: [live({ enabled: true })] });
     expect(r.writes()[0]).toMatchObject({ method: "PUT", body: { enabled: false } });
   });
+  describe("sync", () => {
+    const stale = { traffic: 'pkg.ecosystem in {"npm"}' };
+
+    it("writes the desired rule over a drifted one, naming every field it changes", async () => {
+      const r = await run("sync", { rules: [live(stale)] });
+      expect(r.error).toBeUndefined();
+      expect(r.writes()).toEqual([expect.objectContaining({ method: "PUT", path: "/gateway/rules/live-id", body: expect.objectContaining({ traffic: 'pkg.ecosystem in {"npm" "pypi"}' }) })]);
+      expect(r.lines.join("\n")).toMatch(/changing traffic: live "pkg\.ecosystem in \{\\"npm\\"\}" -> "pkg\.ecosystem in \{\\"npm\\" \\"pypi\\"\}"/);
+      expect(r.lines.at(-1)).toMatch(/stays disabled/);
+    });
+    it.each([true, false])("never changes whether the rule is enabled (it was %s)", async (enabled) => {
+      const r = await run("sync", { rules: [live({ ...stale, enabled })] });
+      expect(r.writes()).toHaveLength(1);
+      expect(r.writes()[0]).toMatchObject({ body: { enabled } });
+      expect(r.lines.at(-1)).toMatch(enabled ? /stays ENABLED/ : /stays disabled/);
+    });
+    it("is a no-op, with no write, when already in sync", async () => {
+      const r = await run("sync", { rules: [live({ enabled: true })] });
+      expect(r.writes()).toEqual([]);
+      expect(r.lines).toEqual(["already in sync; nothing to do"]);
+    });
+    it("fixes the scope as well as the traffic", async () => {
+      const r = await run("sync", { rules: [live({ identity: 'identity.email in {"someone-else@example.com"}' })] });
+      expect(r.writes()).toHaveLength(1);
+      expect(r.lines.join("\n")).toMatch(/changing identity/);
+    });
+    it("refuses a missing rule, a missing Worker and a taken precedence, and writes nothing", async () => {
+      const missing = await run("sync");
+      expect(missing.error?.message).toMatch(/run create first/);
+      const noWorker = await run("sync", { rules: [live(stale)], workers: [] });
+      expect(noWorker.error?.message).toMatch(/not found/);
+      const taken = await run("sync", { rules: [live(stale), live({ id: "other-id", name: "other", precedence: 47000 })] });
+      expect(taken.error?.message).toMatch(/already used/);
+      for (const r of [missing, noWorker, taken]) expect(r.writes()).toEqual([]);
+    });
+  });
   it("delete removes the rule, and is a no-op when absent", async () => {
     expect((await run("delete", { rules: [live()] })).writes()).toEqual([{ method: "DELETE", path: "/gateway/rules/live-id" }]);
     const absent = await run("delete");

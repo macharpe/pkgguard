@@ -1,8 +1,10 @@
 /**
  * Manages the PkgGuard Gateway Forward rule.
- *   tsx scripts/gateway-rule.ts <status|create|enable|disable|delete>
+ *   tsx scripts/gateway-rule.ts <status|create|enable|disable|sync|delete>
  *
- * `create` always makes the rule disabled. Credentials come from the environment (or .deploy.env):
+ * `create` always makes the rule disabled. `sync` writes the desired configuration over the live rule, printing
+ * each field it changes, and never changes whether the rule is enabled: use it after the enabled ecosystems or the
+ * scope change, then `status` to confirm. Credentials come from the environment (or .deploy.env):
  * TF_VAR_cloudflare_api_token, PKGGUARD_ACCOUNT_ID, PKGGUARD_SCOPE (emails and/or @domain entries).
  * Optional: PKGGUARD_FORWARD_PRECEDENCE (default 47000).
  */
@@ -22,7 +24,7 @@ import {
   type Scope,
 } from "./lib/gateway-rule.js";
 
-export const COMMANDS = ["status", "create", "enable", "disable", "delete"] as const;
+export const COMMANDS = ["status", "create", "enable", "disable", "sync", "delete"] as const;
 export type Command = (typeof COMMANDS)[number];
 
 export interface Config {
@@ -65,6 +67,16 @@ export async function execute(command: Command, api: Api, config: Config, log: (
       assertPrecedenceFree(rules, config.precedence);
       await api.call("PUT", `/gateway/rules/${existing.id}`, await desired(enabled));
       return log(`${enabled ? "enabled" : "disabled"} rule ${existing.id}`);
+    }
+    case "sync": {
+      if (!existing) throw new Error("the rule does not exist; run create first");
+      const want = await desired(existing.enabled);
+      const drift = diffRule(want, existing);
+      if (drift.length === 0) return log("already in sync; nothing to do");
+      assertPrecedenceFree(rules, config.precedence);
+      for (const d of drift) log(`changing ${d.field}: live ${JSON.stringify(d.actual)} -> ${JSON.stringify(d.expected)}`);
+      await api.call("PUT", `/gateway/rules/${existing.id}`, want);
+      return log(`synced rule ${existing.id}; it stays ${existing.enabled ? "ENABLED" : "disabled"}`);
     }
     case "delete": {
       if (!existing) return log("nothing to delete");
