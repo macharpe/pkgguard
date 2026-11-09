@@ -83,7 +83,7 @@ packages/core/            pure TS, no Workers APIs
                             and golden-behaviour.json (the pinned parse and match behaviour; regenerate on purpose)
 ```
 
-`scripts/` holds the one-off bootstrap (`bootstrap.ts`) and the deploy-config generator (`generate-deploy-config.ts`); shared code is in `scripts/lib/`; `scripts/oracles/` holds the comparator oracles (Ruby, .NET and Go programs that are never run in CI). `workers/<name>/wrangler.jsonc` is the committed template with placeholder IDs. `migrations/0001_init.sql` is the D1 schema.
+`scripts/` holds the one-off bootstrap (`bootstrap.ts`) and the deploy-config generator (`generate-deploy-config.ts`); shared code is in `scripts/lib/`; `scripts/oracles/` holds the comparator oracles (Ruby, .NET and Go programs that are never run in CI). `workers/<name>/wrangler.jsonc` is the committed template with placeholder IDs. `migrations/0001_init.sql` is the D1 schema. Of `docs/`, only `DEMO.md` is published (`docs/*` is ignored, with that one exception): working documents such as a roadmap or design notes stay on the author's machine, and no published file may link to them. The README's screenshot lives in `assets/` for that reason, and must show example addresses only, never a real one.
 
 ```
 workers/filter/           pkgguard-filter
