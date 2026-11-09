@@ -135,7 +135,7 @@ npm run gateway:rule -- status
 npm run gateway:rule -- enable
 ```
 
-**7. Watch, then enforce.** Install a few packages and open the dashboard. When the detections look right, set `PKGGUARD_ENFORCE=true` in `.deploy.env` and run `npm run deploy:filter`. The deploy prints the mode it wrote.
+**7. Watch, then enforce.** Install a few packages and open the dashboard: it opens on **Detections**, with an **Enforcement** badge above the tabs. When the detections look right, set `PKGGUARD_ENFORCE=true` in `.deploy.env` and run `npm run deploy:filter`. The deploy prints the mode it wrote, and the badge shows what the filter itself reports once it has served a request. Until then it says "Not reported yet", which does not mean enforcement is off.
 
 ## Operating it
 
@@ -145,8 +145,9 @@ npm run gateway:rule -- enable
 | Turn it back on | `npm run gateway:rule -- enable` |
 | Check the rule | `npm run gateway:rule -- status` reports the rule and any drift from the configured scope |
 | Bring the rule up to date | `npm run gateway:rule -- sync` writes the configured scope and ecosystems over the live rule, prints each field it changes, and leaves it enabled or disabled as it was |
-| Block or allow a package now | The dashboard's **Overrides** panel. An allow beats a block, and both beat OSV. A change usually reaches the filter within seconds; KV propagation can take up to a minute. |
-| Find what a developer hit | Paste the reference into the dashboard's **Reference** box |
+| Block or allow a package now | The dashboard's **Packages** tab: search a package and choose **Block** or **Allow**, or select a detection and choose **Add override**. Either prefills the form and saves nothing until you press Add. An allow beats a block, and both beat OSV. A change usually reaches the filter within seconds; KV propagation can take up to a minute. |
+| Find what a developer hit | Paste the reference into the **Search reference** box on the **Detections** tab. Every reference belongs to a blocked or flagged download, so the default **Needs attention** view finds it |
+| Check what the filter is doing | The **Enforcement** badge above the tabs: Enforcing, Enforcing except some ecosystems, Observe-only, or Not reported yet. It shows when the filter last reported, and says so when that is more than a day ago |
 | Refresh the index | Daily at 04:00 UTC, monthly at 03:00 UTC, or the dashboard's refresh button. The monthly and daily runs are the same idempotent delta. |
 | Stop enforcing without turning it off | Set `PKGGUARD_ENFORCE=false` and redeploy the filter: detections continue, nothing is blocked |
 | Watch one ecosystem without blocking it | Set `PKGGUARD_OBSERVE_ONLY=<id>` (for example `pypi`) in `.deploy.env` and redeploy the filter: that ecosystem is recorded as flagged and never blocked, while the others still enforce. An unknown id fails the deploy |
