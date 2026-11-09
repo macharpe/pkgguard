@@ -477,8 +477,13 @@
   },
   {
    "url": "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg",
-   "pkg": null,
-   "purl": null
+   "pkg": {
+    "ecosystem": "nuget",
+    "namespace": null,
+    "name": "newtonsoft.json",
+    "version": "13.0.3"
+   },
+   "purl": "pkg:nuget/newtonsoft.json@13.0.3"
   },
   {
    "url": "https://example.com/",

@@ -13,7 +13,7 @@ export type Ecosystem = (typeof ECOSYSTEM_IDS)[number];
  * Ecosystems that are switched on. An ecosystem can be defined above and stay out of this list until its advisory
  * data is loaded: refresh refuses to run for an enabled ecosystem that has no data, so enabling comes after loading.
  */
-export const ENABLED_ECOSYSTEMS: readonly Ecosystem[] = ["npm", "pypi", "cargo", "rubygems"];
+export const ENABLED_ECOSYSTEMS: readonly Ecosystem[] = ["npm", "pypi", "cargo", "rubygems", "nuget"];
 
 /** How an ecosystem is named to people. */
 export const ECOSYSTEM_LABELS: Readonly<Record<Ecosystem, string>> = { npm: "npm", pypi: "PyPI", cargo: "Cargo", rubygems: "RubyGems", nuget: "NuGet" };

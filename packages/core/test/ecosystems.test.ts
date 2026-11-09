@@ -180,7 +180,7 @@ describe("the registry's data", () => {
 
   it("writes the enabled ids as the SQL list the refresh used to hard-code", () => {
     expect(enabledEcosystemSqlList()).toBe(ENABLED_ECOSYSTEMS.map((id) => `'${id}'`).join(","));
-    expect(enabledEcosystemSqlList()).toBe("'npm','pypi','cargo','rubygems'");
+    expect(enabledEcosystemSqlList()).toBe("'npm','pypi','cargo','rubygems','nuget'");
   });
 });
 
