@@ -9,6 +9,9 @@ import { fullName } from "./decide.js";
  * - npm appends the `error` field of a JSON body to its error line: the one channel that reaches an npm terminal.
  * - pip prints only "403 Client Error: Forbidden". Nothing in the response reaches its terminal, so a pip user
  *   learns the detail from the Chat alert, the dashboard or a colleague, not from the response.
+ * - The go command prints `server response:` and the FIRST LINE of a plain-text body, and nothing after it. Verified against
+ *   real go 1.27 behind Gateway, and against a local server for a multi-line body. So for it the first line carries
+ *   everything: the package, the reason, the advisory, the reference and where to ask.
  * - The HTTP reason phrase is printed by both clients when it arrives, but Gateway replaces it with the standard
  *   one, so it is best-effort and carries nothing that is not also elsewhere.
  * - curl shows the plain-text body as it is, and a browser gets a designed page.
@@ -17,14 +20,18 @@ import { fullName } from "./decide.js";
  */
 
 /** `json` is a package manager that prints the `error` field of a JSON body (npm and its relatives). */
-export type ClientKind = "browser" | "json" | "plain";
+export type ClientKind = "browser" | "json" | "go" | "plain";
 
 const PACKAGE_MANAGER_AGENT = /^(npm|pnpm|yarn|bun)\//i;
+/** The go command's own User-Agent. Any other Go program says `Go-http-client/…` and does not print a body this way. */
+const GO_COMMAND_AGENT = /^GoCommand\//;
 const DEFAULT_CONTACT = "the PkgGuard space in Google Chat";
 
 export function clientKind(request: Pick<Request, "headers">): ClientKind {
   if ((request.headers.get("accept") ?? "").toLowerCase().includes("text/html")) return "browser";
-  if (PACKAGE_MANAGER_AGENT.test(request.headers.get("user-agent") ?? "")) return "json";
+  const agent = request.headers.get("user-agent") ?? "";
+  if (PACKAGE_MANAGER_AGENT.test(agent)) return "json";
+  if (GO_COMMAND_AGENT.test(agent)) return "go";
   return "plain";
 }
 
@@ -90,6 +97,13 @@ function plainBody(f: Facts): string {
     helpLine(f),
     "",
   ].join("\n");
+}
+
+/** One line that says it all, because it is all the go command prints; the readable body follows for anyone who sees it raw. */
+function goBody(f: Facts): string {
+  const advisory = f.advisories[0];
+  const line = `Blocked by PkgGuard: ${f.subject} is ${f.short}.${advisory ? ` Advisory ${advisory.url}.` : ""} ${helpLine(f)}`;
+  return `${line}\n\n${plainBody(f)}`;
 }
 
 function jsonBody(f: Facts): string {
@@ -167,7 +181,7 @@ export function blockResponse(
 ): Response {
   const f = facts(pkg, decision, reference, contact);
   const kind = clientKind(request);
-  const body = kind === "browser" ? htmlBody(f) : kind === "json" ? jsonBody(f) : plainBody(f);
+  const body = kind === "browser" ? htmlBody(f) : kind === "json" ? jsonBody(f) : kind === "go" ? goBody(f) : plainBody(f);
   const type = kind === "browser" ? "text/html; charset=utf-8" : kind === "json" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8";
   const headers: Record<string, string> = { ...SECURITY_HEADERS, "content-type": type };
   if (f.reference) headers["x-pkgguard-reference"] = f.reference;

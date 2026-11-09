@@ -16,6 +16,8 @@ const req = (headers: Record<string, string> = {}) => ({ headers: new Headers(he
 const BROWSER = { accept: "text/html,application/xhtml+xml,*/*;q=0.8", "user-agent": "Mozilla/5.0" };
 const NPM = { accept: "*/*", "user-agent": "npm/11.18.0 node/v24.18.0 darwin arm64 workspaces/false" };
 const PIP = { accept: "*/*", "user-agent": 'pip/26.2.2 {"installer":{"name":"pip"}}' };
+// What the go command sends, captured from a real go 1.27.
+const GO = { "user-agent": "GoCommand/1 (+https://go.dev/cmd/go)" };
 
 describe("clientKind", () => {
   it("sends a browser the page, whatever its User-Agent says", () => {
@@ -31,6 +33,13 @@ describe("clientKind", () => {
     (ua) => expect(clientKind(req({ accept: "*/*", "user-agent": ua }))).toBe("plain"),
   );
   it("copes with no headers at all", () => expect(clientKind(req())).toBe("plain"));
+  it("recognises the go command by its own User-Agent, and no other Go program", () => {
+    expect(clientKind(req(GO))).toBe("go");
+    for (const ua of ["Go-http-client/1.1", "Go-http-client/2.0", "go/1.27", "MyGoCommand/1", "xGoCommand/1"]) expect(clientKind(req({ "user-agent": ua })), ua).toBe("plain");
+  });
+  it("still sends a browser the page, whatever it says", () => {
+    expect(clientKind(req({ accept: "text/html", ...GO }))).toBe("browser");
+  });
 });
 
 describe("reasonPhrase", () => {
@@ -79,6 +88,39 @@ describe("blockResponse: what each client receives", () => {
     expect(r.headers.get("x-pkgguard-reference")).toBeNull();
     expect(r.statusText).not.toContain("Ref");
     expect(await r.text()).not.toContain("Reference");
+  });
+
+  describe("the go command, which prints only the first line of the body", () => {
+    const goPkg = { ecosystem: "go" as const, namespace: null, name: "github.com/pkg/errors", version: "v0.9.1" };
+    it("says everything on that first line: package, reason, advisory, reference and where to ask", async () => {
+      const r = blockResponse(req(GO), goPkg, decision(), REF);
+      expect(r.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+      const first = (await r.text()).split("\n")[0] as string;
+      expect(first).toBe(
+        "Blocked by PkgGuard: github.com/pkg/errors@v0.9.1 is listed as malware. Advisory https://osv.dev/vulnerability/GHSA-mh6f-8j2x-4483. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.",
+      );
+    });
+    it("names an administrator, not OSV, for an override, and has no advisory to cite", async () => {
+      const first = (await blockResponse(req(GO), goPkg, decision({ reason: "override", osvIds: [] }), REF).text()).split("\n")[0] as string;
+      expect(first).toBe("Blocked by PkgGuard: github.com/pkg/errors@v0.9.1 is blocked by an administrator. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.");
+    });
+    it("omits the reference when there is none, and uses the configured contact", async () => {
+      const first = (await blockResponse(req(GO), goPkg, decision(), null, "#security-help").text()).split("\n")[0] as string;
+      expect(first).toContain("Ask in #security-help.");
+      expect(first).not.toContain("PG-");
+    });
+    it("keeps the full readable body after it, for anyone who sees the response raw", async () => {
+      const text = await blockResponse(req(GO), goPkg, decision(), REF).text();
+      expect(text).toContain("\n\nPkgGuard blocked this download.\n");
+      expect(text).toContain("Package:   github.com/pkg/errors@v0.9.1 (Go)");
+      expect(text).toContain("Reference: PG-7Q2K4M");
+    });
+    it("is one line of plain text with no markup from the module path", async () => {
+      const evil = { ...goPkg, name: "github.com/x/<script>alert(1)</script>\r\nX-Evil: 1" };
+      const first = (await blockResponse(req(GO), evil, decision(), REF).text()).split("\n")[0] as string;
+      expect(first).not.toMatch(/[<>\r]/);
+      expect(first.length).toBeLessThan(400);
+    });
   });
 
   describe("plain text (curl, pip, anything unknown)", () => {
