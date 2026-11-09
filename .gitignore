@@ -1,6 +1,10 @@
 # Private ops documents
 PLAN.md
 
+# docs/: only DEMO.md is published; roadmap and design notes stay local
+docs/*
+!docs/DEMO.md
+
 # Secrets and generated config
 .deploy.env
 .dev.vars
