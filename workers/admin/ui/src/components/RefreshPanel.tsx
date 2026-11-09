@@ -15,15 +15,27 @@ import { useResource } from "../useResource.js";
 const POLL_MS = 1000;
 
 function StatusBadge({ status }: { status: RefreshRun["status"] }) {
-  const map = { queued: ["Queued", "neutral"], running: ["Running", "blue"], complete: ["Complete", "green"], failed: ["Failed", "red"] } as const;
+  const map = { queued: ["Queued", "secondary"], running: ["Running", "info"], complete: ["Complete", "success"], failed: ["Failed", "error"] } as const;
   const [label, colour] = map[status];
   return <Badge variant={colour}>{label}</Badge>;
 }
 
-export function RefreshPanel({ now, onFinished }: { now: number; onFinished: () => void }) {
-  const history = useResource((signal) => api.refreshHistory(signal), [], 30_000);
+export interface RefreshPanelProps {
+  now: number;
+  /** False while another tab is shown. A run in progress is still followed, so the summary stays current; only the history stops polling. */
+  active: boolean;
+  onFinished: () => void;
+  /** The run being followed, so the summary strip can show it too. */
+  onRunChange: (run: RefreshRunInfo | null) => void;
+}
+
+export function RefreshPanel({ now, active, onFinished, onRunChange }: RefreshPanelProps) {
+  const history = useResource((signal) => api.refreshHistory(signal), [], 30_000, active);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [run, setRun] = useState<RefreshRunInfo | null>(null);
+  const onRunChangeRef = useRef(onRunChange);
+  onRunChangeRef.current = onRunChange;
+  useEffect(() => onRunChangeRef.current(run), [run]);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const finishedRef = useRef(onFinished);

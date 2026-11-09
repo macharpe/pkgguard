@@ -8,7 +8,7 @@ export function Header({ who }: { who: WhoamiResponse | null }) {
     <header className="border-b border-kumo-line bg-kumo-base">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
         <div className="flex items-center gap-3">
-          <CloudflareLogo className="h-5 w-auto" />
+          <CloudflareLogo variant="glyph" className="h-5 w-auto" />
           <span className="h-5 w-px bg-kumo-line" aria-hidden="true" />
           <div className="leading-tight">
             <Text variant="heading3" as="h1">

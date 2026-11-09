@@ -61,8 +61,10 @@ describe("verdicts", () => {
   it("gives every verdict a distinct label and a colour", () => {
     const verdicts = ["blocked", "flagged", "allowed", "error"] as const;
     expect(new Set(verdicts.map((v) => verdictBadge(v).label)).size).toBe(4);
-    expect(verdictBadge("blocked").colour).toBe("red");
-    expect(verdictBadge("allowed").colour).toBe("green");
+    expect(verdictBadge("blocked").colour).toBe("error");
+    expect(verdictBadge("allowed").colour).toBe("success");
+    expect(verdictBadge("flagged").colour).toBe("warning");
+    expect(verdictBadge("error").colour).toBe("secondary");
   });
   it("describes the policy, not the action, in the simulation", () => {
     expect(simulationLabel("blocked")).toBe("Would be blocked");

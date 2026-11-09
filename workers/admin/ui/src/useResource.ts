@@ -9,10 +9,12 @@ export interface Resource<T> {
 }
 
 /**
- * Loads once and, with `pollMs`, again on an interval, but only while the tab is visible.
+ * Loads once and, with `pollMs`, again on an interval, but only while the browser tab is visible and `active` is true.
+ * `active` is for a panel that stays mounted while another tab is shown: it stops polling while hidden and loads once
+ * as soon as it is shown again, so what the person returns to is current.
  * A failed reload keeps the last good data so the screen does not blank out.
  */
-export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, deps: readonly unknown[], pollMs?: number): Resource<T> {
+export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, deps: readonly unknown[], pollMs?: number, active = true): Resource<T> {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,13 +43,19 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, deps: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick]);
 
+  const wasActive = useRef(active);
   useEffect(() => {
-    if (!pollMs) return;
+    if (active && !wasActive.current && pollMs) setTick((n) => n + 1);
+    wasActive.current = active;
+  }, [active, pollMs]);
+
+  useEffect(() => {
+    if (!pollMs || !active) return;
     const id = setInterval(() => {
       if (document.visibilityState === "visible") setTick((n) => n + 1);
     }, pollMs);
     return () => clearInterval(id);
-  }, [pollMs]);
+  }, [pollMs, active]);
 
   return { data, error, loading, reload };
 }

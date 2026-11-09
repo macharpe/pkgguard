@@ -1,4 +1,3 @@
-import { Banner } from "@cloudflare/kumo/components/banner";
 import { Surface } from "@cloudflare/kumo/components/surface";
 import { Text } from "@cloudflare/kumo/components/text";
 import type { ReactNode } from "react";
@@ -21,29 +20,29 @@ function Card({ title, value, children }: { title: string; value: string; childr
 const sum = (advisories: StatusResponse["advisories"], kind: string): number =>
   Object.values(advisories).reduce((total, byKind) => total + (byKind[kind] ?? 0), 0);
 
-export function StatusCards({ status, now }: { status: StatusResponse; now: number }) {
-  const { advisories, detections, ecosystems, lastRefresh } = status;
-  const recent = detections.last24h;
+/** What the filter can match against: the advisory counts, per ecosystem, and the size of the OSV index. */
+export function AdvisoryCounts({ status, now }: { status: StatusResponse; now: number }) {
+  const { advisories, ecosystems } = status;
   const newest = ecosystems.map((e) => e.last_synced_at).sort().at(-1);
-
   return (
-    <section aria-label="Overview" className="flex flex-col gap-4">
-      {lastRefresh === null ? (
-        <Banner variant="secondary" title="No refresh has run yet" description="The data below is the initial bootstrap load from OSV." />
-      ) : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <section aria-label="Advisories in the index" className="flex flex-col gap-3">
+      <div>
+        <Text variant="heading2" as="h2">
+          Advisories in the index
+        </Text>
+        <Text variant="secondary" size="sm">
+          What the filter can match a download against.
+        </Text>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card title="Malware advisories" value={formatCount(sum(advisories, "malware"))}>
           {ecosystemCounts(advisories, "malware", formatCount)}
         </Card>
         <Card title="Vulnerability advisories" value={formatCount(sum(advisories, "vulnerability"))}>
           {ecosystemCounts(advisories, "vulnerability", formatCount)}
         </Card>
-        <Card title="Blocked, last 24 hours" value={formatCount(recent.blocked)}>
-          {formatCount(recent.flagged)} flagged · {formatCount(recent.allowed)} allowed
-          {recent.error > 0 ? ` · ${formatCount(recent.error)} errors` : ""}
-        </Card>
-        <Card title="Index last synced" value={newest ? relativeTime(newest, now) : "never"}>
-          {formatCount(ecosystems.reduce((n, e) => n + e.record_count, 0))} OSV records
+        <Card title="OSV records" value={formatCount(ecosystems.reduce((n, e) => n + e.record_count, 0))}>
+          {newest ? `Last synced ${relativeTime(newest, now)}` : "Never synced"}
         </Card>
       </div>
     </section>

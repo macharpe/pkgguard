@@ -27,18 +27,19 @@ export function splitIds(csv: string | null): string[] {
 
 export const packageLabel = (name: string, version: string | null): string => (version ? `${name}@${version}` : name);
 
-export type BadgeColour = "red" | "orange" | "green" | "neutral";
+/** Kumo's soft badge variants: a tinted background with strong text, so a badge reads as a label and not as a button. */
+export type BadgeColour = "error" | "warning" | "success" | "secondary";
 
 export function verdictBadge(verdict: DetectionVerdict): { label: string; colour: BadgeColour } {
   switch (verdict) {
     case "blocked":
-      return { label: "Blocked", colour: "red" };
+      return { label: "Blocked", colour: "error" };
     case "flagged":
-      return { label: "Flagged", colour: "orange" };
+      return { label: "Flagged", colour: "warning" };
     case "allowed":
-      return { label: "Allowed", colour: "green" };
+      return { label: "Allowed", colour: "success" };
     case "error":
-      return { label: "Lookup error", colour: "neutral" };
+      return { label: "Lookup error", colour: "secondary" };
   }
 }
 

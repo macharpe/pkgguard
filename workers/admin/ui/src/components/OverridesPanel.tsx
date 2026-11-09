@@ -8,17 +8,26 @@ import { Select } from "@cloudflare/kumo/components/select";
 import { Table } from "@cloudflare/kumo/components/table";
 import { Text } from "@cloudflare/kumo/components/text";
 import { Plus, Trash } from "@phosphor-icons/react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AddOverrideRequest, Ecosystem, OverrideItem } from "../../../src/api-types.js";
 import { DEFAULT_ECOSYSTEM, ECOSYSTEM_ITEMS, ecosystemLabel, toEcosystem } from "../ecosystems.js";
 import { api } from "../api.js";
 import { parseVersionsInput, relativeTime, versionsLabel } from "../format.js";
 import { useResource } from "../useResource.js";
+import { prefillSummary, type PrefillRequest } from "../view.js";
 
 const MODES = { block: "Block", allow: "Allow" };
 const key = (o: Pick<OverrideItem, "mode" | "ecosystem" | "package_name">) => `${o.mode}:${o.ecosystem}:${o.package_name}`;
 
-export function OverridesPanel({ now }: { now: number }) {
+export interface OverridesPanelProps {
+  now: number;
+  /** A form fill someone asked for, such as "Add override" in the detection panel. Nothing is saved until Add is pressed. */
+  prefill: PrefillRequest | null;
+  /** The prefill was used up: the form was submitted or cleared. */
+  onPrefillDone: () => void;
+}
+
+export function OverridesPanel({ now, prefill, onPrefillDone }: OverridesPanelProps) {
   const list = useResource((signal) => api.overrides(signal), []);
   const [mode, setMode] = useState<"block" | "allow">("block");
   const [ecosystem, setEcosystem] = useState<Ecosystem>(DEFAULT_ECOSYSTEM);
@@ -28,6 +37,28 @@ export function OverridesPanel({ now }: { now: number }) {
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (prefill === null) return;
+    setMode(prefill.mode);
+    setEcosystem(toEcosystem(prefill.ecosystem));
+    setName(prefill.name);
+    setVersions(prefill.versions);
+    setNote(prefill.note);
+    setMessage(null);
+    // The panel was hidden until this render, so it is only now that the form can scroll and take focus.
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    noteRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.nonce]);
+
+  function clearForm() {
+    setName("");
+    setVersions("");
+    setNote("");
+  }
 
   async function add(event: FormEvent) {
     event.preventDefault();
@@ -41,9 +72,8 @@ export function OverridesPanel({ now }: { now: number }) {
     try {
       const { created, item } = await api.addOverride(request);
       setMessage({ kind: "ok", text: `${created ? "Added" : "Updated"}: ${item.mode} ${item.package_name}. It reaches the filter within about a minute.` });
-      setName("");
-      setVersions("");
-      setNote("");
+      clearForm();
+      onPrefillDone();
       list.reload();
     } catch (err) {
       setMessage({ kind: "error", text: err instanceof Error ? err.message : "Could not save the override" });
@@ -79,7 +109,26 @@ export function OverridesPanel({ now }: { now: number }) {
         </Text>
       </div>
 
-      <form onSubmit={(e) => void add(e)} className="flex flex-wrap items-end gap-3">
+      {prefill !== null ? (
+        <Banner
+          variant="default"
+          title={prefillSummary(prefill)}
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                clearForm();
+                onPrefillDone();
+              }}
+            >
+              Clear
+            </Button>
+          }
+        />
+      ) : null}
+
+      <form ref={formRef} onSubmit={(e) => void add(e)} className="flex flex-wrap items-end gap-3">
         <div className="w-32 shrink-0">
           <Select label="Action" value={mode} onValueChange={(v) => setMode(v === "allow" ? "allow" : "block")} items={MODES} className="w-full" />
         </div>
@@ -93,7 +142,7 @@ export function OverridesPanel({ now }: { now: number }) {
           <Input label="Versions (blank for all)" placeholder="1.3.0, 1.3.1" value={versions} onChange={(e) => setVersions(e.target.value)} />
         </div>
         <div className="min-w-48 flex-1">
-          <Input label="Note (optional)" placeholder="why" value={note} onChange={(e) => setNote(e.target.value)} />
+          <Input ref={noteRef} label="Note (optional)" placeholder="why" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
         <Button type="submit" variant="primary" icon={<Plus size={16} />} loading={saving} disabled={name.trim() === ""}>
           Add
@@ -111,7 +160,7 @@ export function OverridesPanel({ now }: { now: number }) {
         <Empty title="No overrides" description="Everything follows the OSV index." />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-kumo-line">
-          <Table>
+          <Table className="min-w-[40rem]">
             <Table.Header>
               <Table.Row>
                 <Table.Head>Action</Table.Head>
@@ -128,11 +177,11 @@ export function OverridesPanel({ now }: { now: number }) {
               {items.map((item) => (
                 <Table.Row key={key(item)}>
                   <Table.Cell>
-                    <Badge variant={item.mode === "block" ? "red" : "green"}>{item.mode === "block" ? "Block" : "Allow"}</Badge>
+                    <Badge variant={item.mode === "block" ? "error" : "success"}>{item.mode === "block" ? "Block" : "Allow"}</Badge>
                   </Table.Cell>
-                  <Table.Cell>
-                    <span className="font-mono text-sm">{item.package_name}</span>
-                    <span className="ml-2 text-xs text-kumo-subtle">{ecosystemLabel(item.ecosystem)}</span>
+                  <Table.Cell className="max-w-[26rem]">
+                    <span className="font-mono text-sm break-all">{item.package_name}</span>
+                    <span className="ml-2 text-xs whitespace-nowrap text-kumo-subtle">{ecosystemLabel(item.ecosystem)}</span>
                   </Table.Cell>
                   <Table.Cell>
                     <span className="font-mono text-xs">{versionsLabel(item.versions)}</span>

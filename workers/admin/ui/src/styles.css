@@ -1,3 +1,104 @@
 @source "../../../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
 @import "@cloudflare/kumo/styles";
 @import "tailwindcss";
+
+/*
+ * PkgGuard palette: warm paper and ink, with Cloudflare orange as the one accent.
+ *
+ * Kumo draws everything from semantic tokens, so this is a re-skin and not a fork: the components are untouched and
+ * only the values behind their tokens change. These rules are unlayered, so they win over Kumo's layered ones whatever
+ * the specificity. Light is the default; dark is `data-mode="dark"`, as the rest of Kumo expects.
+ *
+ * Status colours come in pairs: a strong foreground (`--color-kumo-success`, used for text and dots) and a soft tint
+ * (`--color-kumo-success-tint`, used behind badges). Badges use the soft variants (`error`, `warning`, `success`,
+ * `info`, `secondary`) so they read as labels and not as buttons.
+ */
+:root {
+  --color-kumo-canvas: #f6f3ee;
+  --color-kumo-base: #ffffff;
+  --color-kumo-elevated: #fbf9f5;
+  --color-kumo-recessed: #efeae2;
+  --color-kumo-tint: #f0ece5;
+  --color-kumo-contrast: #2b2118;
+  --color-kumo-overlay: #ffffff;
+  --color-kumo-control: #ffffff;
+  --color-kumo-interact: #d9d2c6;
+  --color-kumo-fill: #ebe6dd;
+  --color-kumo-fill-hover: #e4ded4;
+  --color-kumo-line: #e4ded4;
+  --color-kumo-hairline: #e4ded4;
+  --color-kumo-focus: #f6821f;
+
+  --color-kumo-brand: #f6821f;
+  --color-kumo-brand-hover: #e0710f;
+
+  --color-kumo-info: #0b63c5;
+  --color-kumo-info-tint: #e1edfb;
+  --color-kumo-success: #146c33;
+  --color-kumo-success-tint: #dcf3e3;
+  --color-kumo-warning: #9a5b00;
+  --color-kumo-warning-tint: #fff1d6;
+  --color-kumo-danger: #b3261e;
+  --color-kumo-danger-tint: #fde8e6;
+  --color-kumo-banner-info: #e1edfb;
+  --color-kumo-banner-warning: #fff1d6;
+
+  --text-color-kumo-default: #2b2118;
+  --text-color-kumo-strong: #1c140c;
+  --text-color-kumo-subtle: #6f6457;
+  --text-color-kumo-inactive: #a89e91;
+  --text-color-kumo-placeholder: #a89e91;
+  --text-color-kumo-inverse: #f2ece3;
+  --text-color-kumo-brand: #f6821f;
+  --text-color-kumo-link: #0b63c5;
+  --text-color-kumo-info: #0b4f9e;
+  --text-color-kumo-success: #146c33;
+  --text-color-kumo-warning: #9a5b00;
+  --text-color-kumo-danger: #b3261e;
+  --text-color-kumo-badge-neutral-subtle: #5b5146;
+}
+
+:root[data-mode="dark"] {
+  --color-kumo-canvas: #14110e;
+  --color-kumo-base: #1d1915;
+  --color-kumo-elevated: #221d18;
+  --color-kumo-recessed: #0f0d0a;
+  --color-kumo-tint: #26211c;
+  --color-kumo-contrast: #f2ece3;
+  --color-kumo-overlay: #1d1915;
+  --color-kumo-control: #1d1915;
+  --color-kumo-interact: #4a4237;
+  --color-kumo-fill: #2d2822;
+  --color-kumo-fill-hover: #38312a;
+  --color-kumo-line: #3a332b;
+  --color-kumo-hairline: #3a332b;
+  --color-kumo-focus: #f6821f;
+
+  --color-kumo-brand: #f6821f;
+  --color-kumo-brand-hover: #ff9238;
+
+  --color-kumo-info: #86bcff;
+  --color-kumo-info-tint: #14304f;
+  --color-kumo-success: #7fdc9b;
+  --color-kumo-success-tint: #17341f;
+  --color-kumo-warning: #ffc46b;
+  --color-kumo-warning-tint: #43300f;
+  --color-kumo-danger: #ff9f98;
+  --color-kumo-danger-tint: #46201d;
+  --color-kumo-banner-info: #14304f;
+  --color-kumo-banner-warning: #43300f;
+
+  --text-color-kumo-default: #f2ece3;
+  --text-color-kumo-strong: #fbf7f1;
+  --text-color-kumo-subtle: #a79b8c;
+  --text-color-kumo-inactive: #6f6558;
+  --text-color-kumo-placeholder: #6f6558;
+  --text-color-kumo-inverse: #14110e;
+  --text-color-kumo-brand: #f6821f;
+  --text-color-kumo-link: #6ab0ff;
+  --text-color-kumo-info: #86bcff;
+  --text-color-kumo-success: #7fdc9b;
+  --text-color-kumo-warning: #ffc46b;
+  --text-color-kumo-danger: #ff9f98;
+  --text-color-kumo-badge-neutral-subtle: #b8ac9c;
+}
