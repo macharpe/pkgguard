@@ -19,9 +19,9 @@ Do this ten minutes ahead, not in front of people.
 3. **The test packages still exist.** Registries remove malware, so this can change between demos.
    ```bash
    npm view vfat-tools@0.0.1-security version                       # an npm malware package
-   curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/zennittts/0.1.0/json   # expect 200
+   curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/py2ops/2.2/json        # a PyPI malware package: expect 200
    ```
-   If either is gone, find another entry the index flags as malware that is still downloadable, and use it throughout.
+   If either is gone, find another entry the index flags as malware that is still downloadable, and use it throughout. PyPI removes malware quickly (the previous example, `zennittts`, was gone within days, and pip then reports `from versions: none` instead of a block). Spares for PyPI: `fabdeploycheck==0.1.1` (`MAL-2026-17926`) and `kraken123==0.4.0` (`MAL-2025-191778`).
 4. **The client device is enrolled, its Cloudflare One session is active, and its registry traffic is decrypted.** Without an identity, the rule does not match and nothing is filtered. Being in the rule's scope is not enough: if the user is still covered by your Do Not Inspect exemption, malware downloads silently and the dashboard stays empty. Check the TLS issuer, which must name Cloudflare, not the registry's own CA, for each host:
    ```bash
    for h in registry.npmjs.org pypi.org files.pythonhosted.org static.crates.io index.crates.io rubygems.org index.rubygems.org api.nuget.org globalcdn.nuget.org proxy.golang.org; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
