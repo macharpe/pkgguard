@@ -8,10 +8,13 @@ import { ECOSYSTEMS, ENABLED_ECOSYSTEMS } from "../../packages/core/src/index.js
 
 /**
  * Follows the account convention: <FILTER>-<Action>: <description> [<family>].
- * `findRule` matches on this name, so it must not change while the rule exists: the name still says "npm and PyPI"
- * although the traffic expression below now follows the enabled ecosystems.
+ * `findRule` matches on this name or a legacy one, so a rename needs the old name added to LEGACY_RULE_NAMES; `sync`
+ * then renames the live rule in place. The name lists no ecosystem because the traffic expression below follows the
+ * enabled ones.
  */
-export const RULE_NAME = "HTTP-Forward: npm and PyPI downloads to PkgGuard [Package Registry Security]";
+export const RULE_NAME = "HTTP-Forward: package downloads to PkgGuard [Package Registry Security]";
+export const LEGACY_RULE_NAMES: readonly string[] = ["HTTP-Forward: npm and PyPI downloads to PkgGuard [Package Registry Security]"];
+const isOurs = (name: string): boolean => name === RULE_NAME || LEGACY_RULE_NAMES.includes(name);
 export const WORKER_NAME = "pkgguard-filter";
 export const DEFAULT_PRECEDENCE = 47_000;
 /** The static pkg.* demo policies run up to 46500 and must keep winning. */
@@ -113,7 +116,7 @@ export function buildPayload(input: RuleInput): RulePayload {
 /** The ecosystems the rule forwards, written as Gateway's `pkg.ecosystem` selector expects. */
 export const trafficExpression = (): string => `pkg.ecosystem in {${ENABLED_ECOSYSTEMS.map((id) => `"${ECOSYSTEMS[id].gatewayName}"`).join(" ")}}`;
 
-export const findRule = (rules: readonly GatewayRule[]): GatewayRule | undefined => rules.find((r) => r.name === RULE_NAME);
+export const findRule = (rules: readonly GatewayRule[]): GatewayRule | undefined => rules.find((r) => r.name === RULE_NAME) ?? rules.find((r) => isOurs(r.name));
 
 export function findWorkerId(workers: ReadonlyArray<{ id: string; name: string }>): string {
   const worker = workers.find((w) => w.name === WORKER_NAME);
@@ -124,7 +127,7 @@ export function findWorkerId(workers: ReadonlyArray<{ id: string; name: string }
 
 /** Refuses a precedence another rule already holds. */
 export function assertPrecedenceFree(rules: readonly GatewayRule[], precedence: number): void {
-  const holder = rules.find((r) => r.precedence === precedence && r.name !== RULE_NAME);
+  const holder = rules.find((r) => r.precedence === precedence && !isOurs(r.name));
   if (holder) throw new Error(`precedence ${precedence} is already used by "${holder.name}"`);
 }
 
@@ -140,6 +143,7 @@ export function diffRule(desired: RulePayload, live: GatewayRule): Drift[] {
   const check = (field: string, expected: unknown, actual: unknown): void => {
     if (JSON.stringify(expected) !== JSON.stringify(actual)) out.push({ field, expected, actual });
   };
+  check("name", desired.name, live.name);
   check("precedence", desired.precedence, live.precedence);
   check("action", desired.action, live.action);
   check("filters", desired.filters, live.filters);

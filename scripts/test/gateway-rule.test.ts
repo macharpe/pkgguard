@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { CloudflareApi } from "../lib/cloudflare-api.js";
 import {
   DEFAULT_PRECEDENCE,
+  LEGACY_RULE_NAMES,
   MIN_PRECEDENCE,
   RULE_NAME,
   assertPrecedenceFree,
   buildPayload,
   diffRule,
+  findRule,
   findWorkerId,
   identityExpression,
   parseScope,
@@ -160,6 +162,13 @@ describe("findWorkerId / assertPrecedenceFree / diffRule", () => {
   it("refuses a precedence held by someone else but not by our own rule", () => {
     expect(() => assertPrecedenceFree([rule({ name: "other", precedence: 47000 })], 47000)).toThrow(/already used/);
     expect(() => assertPrecedenceFree([rule({})], 47000)).not.toThrow();
+    expect(() => assertPrecedenceFree([rule({ name: LEGACY_RULE_NAMES[0] as string })], 47000)).not.toThrow();
+  });
+  it("finds the rule under its current name, preferring it over a legacy one", () => {
+    const legacy = rule({ id: "old", name: LEGACY_RULE_NAMES[0] as string });
+    expect(findRule([rule({ name: "other" })])).toBeUndefined();
+    expect(findRule([legacy])?.id).toBe("old");
+    expect(findRule([legacy, rule({ id: "new" })])?.id).toBe("new");
   });
   it("reports drift field by field", () => {
     const desired = buildPayload({ workerId: WORKER_ID, scope: SCOPE, precedence: 47000, enabled: false });
@@ -221,6 +230,11 @@ describe("execute", () => {
     expect(r.error?.message).toMatch(/already exists/);
     expect(r.writes()).toEqual([]);
   });
+  it("create sees a rule under a legacy name as existing, so it cannot duplicate it", async () => {
+    const r = await run("create", { rules: [live({ name: LEGACY_RULE_NAMES[0] as string })] });
+    expect(r.error?.message).toMatch(/already exists/);
+    expect(r.writes()).toEqual([]);
+  });
   it("create refuses a taken precedence, and writes nothing", async () => {
     const r = await run("create", { rules: [live({ name: "other", precedence: 47000 })] });
     expect(r.error?.message).toMatch(/already used/);
@@ -274,6 +288,13 @@ describe("execute", () => {
       const r = await run("sync", { rules: [live({ enabled: true })] });
       expect(r.writes()).toEqual([]);
       expect(r.lines).toEqual(["already in sync; nothing to do"]);
+    });
+    it.each([true, false])("renames a rule under a legacy name in place, keeping its id and enabled state (%s)", async (enabled) => {
+      const legacy = LEGACY_RULE_NAMES[0] as string;
+      const r = await run("sync", { rules: [live({ name: legacy, enabled })] });
+      expect(r.error).toBeUndefined();
+      expect(r.writes()).toEqual([expect.objectContaining({ method: "PUT", path: "/gateway/rules/live-id", body: expect.objectContaining({ name: RULE_NAME, enabled }) })]);
+      expect(r.lines.join("\n")).toContain(`changing name: live ${JSON.stringify(legacy)} -> ${JSON.stringify(RULE_NAME)}`);
     });
     it("fixes the scope as well as the traffic", async () => {
       const r = await run("sync", { rules: [live({ identity: 'identity.email in {"someone-else@example.com"}' })] });
