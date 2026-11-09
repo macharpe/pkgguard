@@ -6,7 +6,7 @@
  *
  * Adding an id here is a compile error everywhere a `Record<Ecosystem, …>` is built, which is the point.
  */
-export const ECOSYSTEM_IDS = ["npm", "pypi", "cargo", "rubygems"] as const;
+export const ECOSYSTEM_IDS = ["npm", "pypi", "cargo", "rubygems", "nuget"] as const;
 export type Ecosystem = (typeof ECOSYSTEM_IDS)[number];
 
 /**
@@ -16,7 +16,7 @@ export type Ecosystem = (typeof ECOSYSTEM_IDS)[number];
 export const ENABLED_ECOSYSTEMS: readonly Ecosystem[] = ["npm", "pypi", "cargo", "rubygems"];
 
 /** How an ecosystem is named to people. */
-export const ECOSYSTEM_LABELS: Readonly<Record<Ecosystem, string>> = { npm: "npm", pypi: "PyPI", cargo: "Cargo", rubygems: "RubyGems" };
+export const ECOSYSTEM_LABELS: Readonly<Record<Ecosystem, string>> = { npm: "npm", pypi: "PyPI", cargo: "Cargo", rubygems: "RubyGems", nuget: "NuGet" };
 
 export function isEcosystem(value: unknown): value is Ecosystem {
   return typeof value === "string" && (ECOSYSTEM_IDS as readonly string[]).includes(value);

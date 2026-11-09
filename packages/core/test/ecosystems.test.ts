@@ -107,6 +107,27 @@ const FIXTURES: Record<Ecosystem, Fixture> = {
     overrideAccepts: ["rails", "rack-test", "a.b_c", "3scale-time_range"],
     overrideRejects: ["", "..", "/x", "a b", "-x", "_x", "Upper", "a/b"],
   },
+  nuget: {
+    downloads: [
+      { url: "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg", pkg: { ecosystem: "nuget", namespace: null, name: "newtonsoft.json", version: "13.0.3" } },
+      // A prerelease, as the flat container writes it (lowercased).
+      { url: "https://api.nuget.org/v3-flatcontainer/serilog/3.1.0-rc.1/serilog.3.1.0-rc.1.nupkg", pkg: { ecosystem: "nuget", namespace: null, name: "serilog", version: "3.1.0-rc.1" } },
+    ],
+    notDownloads: [
+      "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/index.json",
+      "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.nuspec",
+      "https://api.nuget.org/v3/index.json",
+      "https://www.nuget.org/api/v2/package/Newtonsoft.Json/13.0.3",
+      "https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/other.13.0.3.nupkg",
+    ],
+    // Case only: `.`, `-` and `_` are different characters in an id.
+    names: [["Newtonsoft.Json", "newtonsoft.json"], ["  SERILOG ", "serilog"], ["Magick.NET-Q16-x64", "magick.net-q16-x64"], ["A.B_c", "a.b_c"]],
+    ordered: ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-rc", "1.0.0", "1.0.0.1", "1.0.1", "1.10.0", "2.0.0"],
+    unparseableVersion: "1.0.0.0.0",
+    osv: { record: record("NuGet", "Bunifu.Form"), name: "bunifu.form", namespace: null },
+    overrideAccepts: ["newtonsoft.json", "serilog", "a_b", "magick.net-q16-x64", "2captcһaapі"],
+    overrideRejects: ["", "..", "/x", "a b", "-x", ".x", "Upper", "a/b", "ÀB"],
+  },
 };
 
 const rowFor = (advisory: ReturnType<typeof distill>[number]): Record<string, unknown> =>
@@ -144,8 +165,8 @@ describe("the registry's data", () => {
 
   it("uses the Gateway strings that were measured, not guessed", () => {
     // Gateway's API refuses an unknown pkg.ecosystem, so these were learned by asking it. RubyGems is "gem", not
-    // "rubygems", which it refuses. The ones still to come are "golang" for Go (not "go") and "nuget".
-    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo", rubygems: "gem" });
+    // "rubygems", which it refuses. The one still to come is "golang" for Go (not "go").
+    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo", rubygems: "gem", nuget: "nuget" });
   });
 
   it("recognises ids and enabled ids, and nothing else", () => {
