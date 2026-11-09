@@ -10,6 +10,9 @@ const SDIST_EXT = /\.(tar\.gz|zip|tar\.bz2|tar\.xz)$/;
  */
 export function parsePypiUrl(url: URL): ParsedPackage | null {
   if (!url.pathname.includes("/packages/")) return null;
+  // A Go module proxy path (`…/packages/…/@v/{version}.zip`) has the same extension and a `/packages/` segment, and is not a
+  // PyPI file: PyPI paths never contain an `@v` segment.
+  if (url.pathname.includes("/@v/")) return null;
   const file = url.pathname.slice(url.pathname.lastIndexOf("/") + 1);
   let decoded: string;
   try {

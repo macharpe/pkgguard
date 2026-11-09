@@ -128,6 +128,27 @@ const FIXTURES: Record<Ecosystem, Fixture> = {
     overrideAccepts: ["newtonsoft.json", "serilog", "a_b", "magick.net-q16-x64", "2captcһaapі"],
     overrideRejects: ["", "..", "/x", "a b", "-x", ".x", "Upper", "a/b", "ÀB"],
   },
+  go: {
+    downloads: [
+      { url: "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.zip", pkg: { ecosystem: "go", namespace: null, name: "github.com/foo/bar", version: "v1.2.3" } },
+      // The proxy writes each capital as `!` and the lowercase letter.
+      { url: "https://proxy.golang.org/github.com/!burnt!sushi/toml/@v/v1.3.2.zip", pkg: { ecosystem: "go", namespace: null, name: "github.com/BurntSushi/toml", version: "v1.3.2" } },
+    ],
+    notDownloads: [
+      "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.info",
+      "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.mod",
+      "https://proxy.golang.org/github.com/foo/bar/@v/list",
+      "https://proxy.golang.org/github.com/foo/bar/@latest",
+      "https://sum.golang.org/lookup/github.com/foo/bar@v1.2.3",
+    ],
+    // Case-sensitive: two modules that differ only by case are two modules.
+    names: [["github.com/BurntSushi/toml", "github.com/BurntSushi/toml"], ["  github.com/foo/bar ", "github.com/foo/bar"], ["github.com/bishopfox/sliver", "github.com/bishopfox/sliver"], ["github.com/BishopFox/sliver", "github.com/BishopFox/sliver"]],
+    ordered: ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0", "1.0.1", "1.10.0", "2.0.0"],
+    unparseableVersion: "1.2.3.4",
+    osv: { record: record("Go", "github.com/Foo/Bar"), name: "github.com/Foo/Bar", namespace: null },
+    overrideAccepts: ["github.com/foo/bar", "gopkg.in/yaml.v3", "golang.org/x/mod", "github.com/BurntSushi/toml", "k8s.io/api"],
+    overrideRejects: ["", "..", "../x", "github.com/../x", "a/b", "stdlib", "github.com//x", "github.com/foo/", "/github.com/x", ".github.com/x", "github.com/.x", "github.com/x.", "github.com/a b", "github.com/foo/bar?x", "github.com/./x"],
+  },
 };
 
 const rowFor = (advisory: ReturnType<typeof distill>[number]): Record<string, unknown> =>
@@ -165,8 +186,8 @@ describe("the registry's data", () => {
 
   it("uses the Gateway strings that were measured, not guessed", () => {
     // Gateway's API refuses an unknown pkg.ecosystem, so these were learned by asking it. RubyGems is "gem", not
-    // "rubygems", which it refuses. The one still to come is "golang" for Go (not "go").
-    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo", rubygems: "gem", nuget: "nuget" });
+    // "rubygems", which it refuses. Go is "golang", not "go", which it refuses.
+    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo", rubygems: "gem", nuget: "nuget", go: "golang" });
   });
 
   it("recognises ids and enabled ids, and nothing else", () => {
@@ -309,6 +330,9 @@ describe("no URL is read as two ecosystems", () => {
     // NuGet's CDN shape has several readings by design, so it is held to this corpus rather than to the one-reading contract.
     "https://globalcdn.nuget.org/packages/newtonsoft.json.13.0.3.nupkg?packageVersion=13.0.3",
     "https://globalcdn.nuget.org/packages/serilog.3.1.0-rc.1.nupkg",
+    // A Go module path can contain `/packages/` and end in `.zip`, as a PyPI sdist does: only the `@v` segment tells them apart.
+    "https://proxy.golang.org/github.com/foo/packages/bar/@v/v0.0.0-20210101000000-0123456789ab.zip",
+    "https://proxy.golang.org/github.com/foo/packages/bar/@v/v1.0.0.zip",
     "https://example.com/",
   ];
 
@@ -317,11 +341,11 @@ describe("no URL is read as two ecosystems", () => {
     expect(readers.length, `${url} parsed by ${readers.join(", ")}`).toBeLessThanOrEqual(1);
   });
 
-  // The Go proxy URL for a pseudo-version under a module path containing "/packages/" is read as a PyPI sdist
-  // whose name is "v0.0.0-20210101000000". Go is not an ecosystem yet, so nothing is exposed today; the roadmap's Go
-  // phase must anchor each parser on a shape no other accepts, at which point this starts to pass and must be a plain test.
-  it.fails("known gap: a Go pseudo-version URL under /packages/ is read as PyPI", () => {
+  // The Go proxy URL for a module path containing "/packages/" used to be read as a PyPI sdist named
+  // "v0.0.0-20210101000000", the one gap this corpus found. The PyPI parser now refuses any path with an `@v` segment.
+  it("is read as Go, and not as PyPI, when a module path contains /packages/", () => {
     const url = new URL("https://proxy.golang.org/github.com/foo/packages/bar/@v/v0.0.0-20210101000000-0123456789ab.zip");
     expect(ECOSYSTEMS.pypi.parse(url)).toEqual([]);
+    expect(ECOSYSTEMS.go.parse(url)).toEqual([{ ecosystem: "go", namespace: null, name: "github.com/foo/packages/bar", version: "v0.0.0-20210101000000-0123456789ab" }]);
   });
 });

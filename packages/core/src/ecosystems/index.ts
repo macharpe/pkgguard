@@ -1,6 +1,7 @@
 import { ENABLED_ECOSYSTEMS, type Ecosystem } from "../ecosystem-ids.js";
 import { cargo } from "./cargo.js";
 import { npm } from "./npm.js";
+import { go } from "./go.js";
 import { nuget } from "./nuget.js";
 import { pypi } from "./pypi.js";
 import { rubygems } from "./rubygems.js";
@@ -8,13 +9,14 @@ import type { EcosystemSpec } from "./types.js";
 
 export type { EcosystemSpec } from "./types.js";
 export { normalizeCargoName } from "./cargo.js";
+export { normalizeGoName } from "./go.js";
 export { normalizeNpmName } from "./npm.js";
 export { normalizeNugetName } from "./nuget.js";
 export { normalizeRubygemsName } from "./rubygems.js";
 export { normalizePypiName } from "./pypi.js";
 
 /** Typed as a full record, so defining an id without a spec here does not compile. */
-export const ECOSYSTEMS: Readonly<Record<Ecosystem, EcosystemSpec>> = { npm, pypi, cargo, rubygems, nuget };
+export const ECOSYSTEMS: Readonly<Record<Ecosystem, EcosystemSpec>> = { npm, pypi, cargo, rubygems, nuget, go };
 
 export const ecosystemSpec = (ecosystem: Ecosystem): EcosystemSpec => ECOSYSTEMS[ecosystem];
 

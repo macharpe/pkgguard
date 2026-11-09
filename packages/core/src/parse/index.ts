@@ -1,6 +1,8 @@
 import { ENABLED_ECOSYSTEMS } from "../ecosystem-ids.js";
 import { ECOSYSTEMS } from "../ecosystems/index.js";
+import type { EcosystemSpec } from "../ecosystems/types.js";
 import { parseCargoUrl } from "./cargo.js";
+import { parseGoUrl } from "./go.js";
 import { parseNpmUrl } from "./npm.js";
 import { parseNugetUrl } from "./nuget.js";
 import { parsePypiUrl } from "./pypi.js";
@@ -8,7 +10,8 @@ import { parseRubygemsUrl } from "./rubygems.js";
 import type { ParsedPackage } from "./types.js";
 
 export type { ParsedPackage } from "./types.js";
-export { parseCargoUrl, parseNpmUrl, parseNugetUrl, parsePypiUrl, parseRubygemsUrl };
+export { parseCargoUrl, parseGoUrl, parseNpmUrl, parseNugetUrl, parsePypiUrl, parseRubygemsUrl };
+export { unescapeGoPath } from "./go.js";
 
 /**
  * The packages a registry download URL could be, or none when it is not a recognised download. Never throws.
@@ -39,9 +42,12 @@ export function parsePackageUrl(input: string | URL): ParsedPackage | null {
   return parsePackageCandidates(input)[0] ?? null;
 }
 
+const purlPath = (spec: EcosystemSpec, name: string): string =>
+  spec.pathNames ? spec.purlName(name).split("/").map(encodeURIComponent).join("/") : encodeURIComponent(spec.purlName(name));
+
 /** Package URL per the purl spec. npm scope is percent-encoded as `%40scope`. */
 export function toPurl(pkg: ParsedPackage): string {
   const spec = ECOSYSTEMS[pkg.ecosystem];
   const ns = pkg.namespace ? `${encodeURIComponent(pkg.namespace.toLowerCase())}/` : "";
-  return `pkg:${spec.purlType}/${ns}${encodeURIComponent(spec.purlName(pkg.name))}@${encodeURIComponent(pkg.version)}`;
+  return `pkg:${spec.purlType}/${ns}${purlPath(spec, pkg.name)}@${encodeURIComponent(pkg.version)}`;
 }

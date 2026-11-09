@@ -55,6 +55,7 @@ export function distillFor(record: OsvRecord, ecosystems: readonly Ecosystem[]):
     if (!ecosystem || typeof rawName !== "string" || rawName.trim() === "") continue;
 
     const packageName = normalizeName(ecosystem, rawName);
+    if (ECOSYSTEMS[ecosystem].inScope?.(packageName) === false) continue;
     const key = `${ecosystem}\u0000${packageName}`;
     let row = merged.get(key);
     if (!row) {

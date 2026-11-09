@@ -442,13 +442,8 @@
   },
   {
    "url": "https://proxy.golang.org/github.com/foo/packages/bar/@v/v0.0.0-20210101000000-0123456789ab.zip",
-   "pkg": {
-    "ecosystem": "pypi",
-    "namespace": null,
-    "name": "v0.0.0-20210101000000",
-    "version": "0123456789ab"
-   },
-   "purl": "pkg:pypi/v0-0-0-20210101000000@0123456789ab"
+   "pkg": null,
+   "purl": null
   },
   {
    "url": "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.zip",

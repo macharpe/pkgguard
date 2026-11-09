@@ -14,10 +14,20 @@ export interface EcosystemSpec {
   normalizeName(raw: string): string;
   /** The name as it appears in a package URL. Not trimmed, unlike `normalizeName`. */
   purlName(name: string): string;
+  /**
+   * True when the name is itself a path whose slashes are separators (a Go module path), so a package URL keeps them. For
+   * every other ecosystem a slash in a name is just a character, and stays percent-encoded so the name remains one segment.
+   */
+  readonly pathNames?: boolean;
   /** -1, 0 or 1; null when either version cannot be parsed, which callers must read as "no match". */
   compare(a: string, b: string): -1 | 0 | 1 | null;
   /** The namespace part of a normalised name (an npm scope), or null. */
   namespaceOf(normalizedName: string): string | null;
+  /**
+   * Whether a normalised name is worth storing. Absent means every name is. Used to leave out entries the registry cannot
+   * serve, so the dashboard counts advisories for packages that can be downloaded.
+   */
+  inScope?(normalizedName: string): boolean;
   /** What an administrator may type as a package name, after normalisation. */
   readonly overrideNamePattern: RegExp;
   readonly maxNameLength: number;
