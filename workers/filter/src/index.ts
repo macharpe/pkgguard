@@ -6,6 +6,7 @@ import { maybeAlertMalware } from "./alert.js";
 import { recordDetection } from "./detections.js";
 import { enforces, readSettings, type Env } from "./env.js";
 import { blockResponse } from "./page.js";
+import { reportEnforcement } from "./report.js";
 
 const IDENTITY_TIMEOUT_MS = 250;
 
@@ -67,6 +68,8 @@ export class GatewayMiddleware extends WorkerEntrypoint<Env> {
     }
 
     const settings = readSettings(this.env);
+    // So the dashboard shows what is running, not what was deployed. Background only: it must not touch the response.
+    this.ctx.waitUntil(reportEnforcement(this.env.PKG_INDEX, settings, Date.now()).catch(() => undefined));
     const deps: DecideDeps = {
       kv: this.env.PKG_INDEX,
       fetch: (input, init) => fetch(input, init),

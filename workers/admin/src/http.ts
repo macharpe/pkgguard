@@ -33,6 +33,21 @@ export function enumParam<T extends string>(url: URL, name: string, allowed: rea
   return raw as T;
 }
 
+/**
+ * A comma-separated list of allowed values, in the order given and without repeats. No trimming: `blocked, flagged`
+ * is a mistake, not a request, so it is a 400 like any other unknown value. Absent or empty means no filter.
+ */
+export function enumListParam<T extends string>(url: URL, name: string, allowed: readonly T[]): T[] {
+  const raw = url.searchParams.get(name);
+  if (raw === null || raw === "") return [];
+  const out: T[] = [];
+  for (const part of raw.split(",")) {
+    if (!(allowed as readonly string[]).includes(part)) throw new HttpError(400, `${name} must be one of ${allowed.join(", ")}`);
+    if (!out.includes(part as T)) out.push(part as T);
+  }
+  return out;
+}
+
 export const MAX_BODY_BYTES = 8 * 1024;
 
 /**

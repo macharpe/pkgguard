@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ENFORCEMENT_KEY } from "@pkgguard/core";
 import { AUD, NOW_MS, OTHER_AUD } from "./jwt-helpers.js";
 import { adminEnv, addAdvisory, addDetection, call, iso, putKv, serviceToken, setup, user } from "./harness.js";
 
@@ -150,6 +151,52 @@ describe("GET /api/status", () => {
     expect(s.ecosystems).toEqual([{ ecosystem: "npm", last_modified: "2026-11-05T00:00:00Z", record_count: 123, last_synced_at: "2026-11-05T01:00:00Z" }]);
     expect(s.lastRefresh.id).toBe("new");
   });
+  describe("enforcement, as the filter reported it", () => {
+    const AT = new Date(NOW_MS - 120_000).toISOString();
+    const report = (over: Record<string, unknown> = {}) => ({ enforce: true, observeOnly: [], reportedAt: AT, ...over });
+
+    it("is null until the filter has reported, which is not the same as not enforcing", async () => {
+      expect((await status()).enforcement).toBeNull();
+    });
+    it("passes a valid report through, including the time it was made", async () => {
+      await putKv("meta:enforcement", report({ observeOnly: ["pypi", "go"] }));
+      expect((await status()).enforcement).toEqual({ enforce: true, observeOnly: ["pypi", "go"], reportedAt: AT });
+    });
+    it("reports observe-only as enforce=false", async () => {
+      await putKv("meta:enforcement", report({ enforce: false }));
+      expect((await status()).enforcement).toEqual({ enforce: false, observeOnly: [], reportedAt: AT });
+    });
+    it("passes an old report through unchanged: staleness is for the dashboard to show, not for the API to hide", async () => {
+      const old = new Date(NOW_MS - 3 * 86_400_000).toISOString();
+      await putKv("meta:enforcement", report({ reportedAt: old }));
+      expect((await status()).enforcement?.reportedAt).toBe(old);
+    });
+    it("drops an ecosystem id it does not know and keeps the rest", async () => {
+      await putKv("meta:enforcement", report({ observeOnly: ["maven", "go", 5] }));
+      expect((await status()).enforcement?.observeOnly).toEqual(["go"]);
+    });
+    it.each([
+      ["not JSON", "{not json"],
+      ["an array", "[]"],
+      ["the wrong types", JSON.stringify({ enforce: "true", observeOnly: "pypi", reportedAt: 5 })],
+      ["a missing time", JSON.stringify({ enforce: true, observeOnly: [] })],
+      ["an unparseable time", JSON.stringify({ enforce: true, observeOnly: [], reportedAt: "soon" })],
+    ])("is null, not an error and not a default, when the stored value is %s", async (_name, raw) => {
+      await env.PKG_INDEX.put("meta:enforcement", raw);
+      const r = await call("/api/status", await user(AUD));
+      expect(r.status).toBe(200);
+      expect((await body(r)).enforcement).toBeNull();
+    });
+    it("still answers, with null, when KV cannot be read", async () => {
+      const brokenKv = { get: async () => { throw new Error("kv down"); } } as unknown as KVNamespace;
+      const r = await call("/api/status", await user(AUD), {}, adminEnv({ PKG_INDEX: brokenKv }));
+      expect(r.status).toBe(200);
+      expect((await body(r)).enforcement).toBeNull();
+    });
+    it("reads the same key the filter writes", async () => {
+      expect(ENFORCEMENT_KEY).toBe("meta:enforcement");
+    });
+  });
   it("memoises the expensive advisory count but not the cheap detection count", async () => {
     await addAdvisory({ ecosystem: "npm", id: "M1", name: "a", kind: "malware" });
     expect((await status()).advisories.npm.malware).toBe(1);
@@ -175,6 +222,72 @@ describe("GET /api/detections", () => {
     expect((await get("?verdict=blocked")).items.map((i: any) => i.package_name)).toEqual(["p1", "n1"]);
     expect((await get("?ecosystem=npm")).items.map((i: any) => i.package_name)).toEqual(["n2", "n1"]);
     expect((await get("?verdict=blocked&ecosystem=npm")).items.map((i: any) => i.package_name)).toEqual(["n1"]);
+  });
+  describe("a list of verdicts", () => {
+    const names = async (qs: string) => (await get(qs)).items.map((i: any) => i.package_name);
+    beforeEach(async () => {
+      for (const [package_name, verdict] of [["b1", "blocked"], ["a1", "allowed"], ["f1", "flagged"], ["e1", "error"], ["b2", "blocked"], ["a2", "allowed"], ["f2", "flagged"]] as const) {
+        await addDetection({ package_name, verdict });
+      }
+    });
+
+    it("returns only the listed verdicts, newest first", async () => {
+      expect(await names("?verdict=blocked,flagged")).toEqual(["f2", "b2", "f1", "b1"]);
+    });
+    it("is the same as a single value when the list has one", async () => {
+      expect(await names("?verdict=blocked")).toEqual(["b2", "b1"]);
+    });
+    it("ignores the order of the list and any repeats", async () => {
+      expect(await names("?verdict=flagged,blocked,flagged")).toEqual(await names("?verdict=blocked,flagged"));
+    });
+    it("cannot be made to bind more parameters than D1 allows by repeating a verdict", async () => {
+      const r = await call(`/api/detections?verdict=${Array(150).fill("blocked").join(",")}`, await user(AUD));
+      expect(r.status).toBe(200);
+      expect((await body(r)).items.map((i: any) => i.package_name)).toEqual(["b2", "b1"]);
+    });
+    it("returns everything when all four are listed, and nothing is filtered when it is absent or empty", async () => {
+      expect(await names("?verdict=blocked,flagged,allowed,error")).toHaveLength(7);
+      expect(await names("")).toHaveLength(7);
+      expect(await names("?verdict=")).toHaveLength(7);
+    });
+    it("combines with the ecosystem and the reference", async () => {
+      await addDetection({ package_name: "go-bad", verdict: "blocked", ecosystem: "go", reference: "PG-7Q2K4M" });
+      await addDetection({ package_name: "go-ok", verdict: "allowed", ecosystem: "go" });
+      expect(await names("?verdict=blocked,flagged&ecosystem=go")).toEqual(["go-bad"]);
+      expect(await names("?verdict=blocked,flagged&reference=PG-7Q2K4M")).toEqual(["go-bad"]);
+      expect(await names("?verdict=allowed,error&reference=PG-7Q2K4M")).toEqual([]);
+    });
+    it("paginates a list with the same cursor, without gaps or repeats", async () => {
+      const first = await get("?verdict=blocked,flagged&limit=3");
+      expect(first.items.map((i: any) => i.package_name)).toEqual(["f2", "b2", "f1"]);
+      expect(first.nextBefore).not.toBeNull();
+      const second = await get(`?verdict=blocked,flagged&limit=3&before=${first.nextBefore}`);
+      expect(second.items.map((i: any) => i.package_name)).toEqual(["b1"]);
+      expect(second.nextBefore).toBeNull();
+    });
+    it("has no cursor when the matching rows fit in one page, however many other rows exist", async () => {
+      expect((await get("?verdict=blocked,flagged&limit=4")).nextBefore).toBeNull();
+      expect((await get("?verdict=blocked,flagged&limit=3")).nextBefore).not.toBeNull();
+    });
+    it.each([
+      "?verdict=blocked,evil",
+      "?verdict=evil,blocked",
+      "?verdict=blocked,",
+      "?verdict=,blocked",
+      "?verdict=blocked,,flagged",
+      "?verdict=blocked,%20flagged",
+      "?verdict=Blocked,flagged",
+      "?verdict=blocked%2Cflagged%2C",
+    ])("rejects %s with 400 and says what is allowed", async (qs) => {
+      const r = await call(`/api/detections${qs}`, await user(AUD));
+      expect(r.status).toBe(400);
+      expect(((await r.json()) as { error: string }).error).toBe("verdict must be one of blocked, flagged, allowed, error");
+    });
+    it("treats SQL inside a list as a plain invalid value", async () => {
+      const r = await call(`/api/detections?verdict=${encodeURIComponent("blocked,x') OR ('1'='1")}`, await user(AUD));
+      expect(r.status).toBe(400);
+      expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM detections").first<{ n: number }>())?.n).toBe(7);
+    });
   });
   it("returns the reference of each row, null where there is none", async () => {
     await addDetection({ package_name: "clean" });

@@ -2,7 +2,7 @@ import { ENABLED_ECOSYSTEMS } from "@pkgguard/core";
 import { isReference } from "@pkgguard/core";
 import type { DetectionRow, DetectionsResponse } from "../api-types.js";
 import type { Env } from "../env.js";
-import { HttpError, enumParam, intParam, json } from "../http.js";
+import { HttpError, enumListParam, enumParam, intParam, json } from "../http.js";
 
 const VERDICTS = ["blocked", "flagged", "allowed", "error"] as const;
 
@@ -14,9 +14,12 @@ function referenceParam(url: URL): string | null {
   return raw;
 }
 
-/** Newest first, keyset-paginated on id: `before` is the smallest id of the previous page. */
+/**
+ * Newest first, keyset-paginated on id: `before` is the smallest id of the previous page.
+ * `verdict` takes one value or a comma-separated list (`blocked,flagged`): one query, so the cursor stays valid.
+ */
 export async function detections(env: Env, url: URL): Promise<Response> {
-  const verdict = enumParam(url, "verdict", VERDICTS);
+  const verdicts = enumListParam(url, "verdict", VERDICTS);
   const ecosystem = enumParam(url, "ecosystem", ENABLED_ECOSYSTEMS);
   const reference = referenceParam(url);
   const limit = intParam(url, "limit", 50, 200);
@@ -25,7 +28,7 @@ export async function detections(env: Env, url: URL): Promise<Response> {
 
   const where: string[] = [];
   const binds: Array<string | number> = [];
-  if (verdict) (where.push("verdict = ?"), binds.push(verdict));
+  if (verdicts.length > 0) (where.push(`verdict IN (${verdicts.map(() => "?").join(",")})`), binds.push(...verdicts));
   if (ecosystem) (where.push("ecosystem = ?"), binds.push(ecosystem));
   if (reference) (where.push("reference = ?"), binds.push(reference));
   if (before !== null) (where.push("id < ?"), binds.push(before));

@@ -57,6 +57,15 @@ export interface StartRefreshResponse {
   runId: string;
 }
 
+/** What the filter Worker last said about itself. The shape is `EnforcementReport` in core; this copy keeps the dashboard free of core's runtime. */
+export interface EnforcementInfo {
+  enforce: boolean;
+  /** Ecosystems that never block, whatever `enforce` says. */
+  observeOnly: Ecosystem[];
+  /** ISO 8601. Old when the filter has had no traffic since. */
+  reportedAt: string;
+}
+
 export interface StatusResponse {
   generatedAt: string;
   ecosystems: Array<{ ecosystem: Ecosystem; last_modified: string; record_count: number; last_synced_at: string }>;
@@ -64,6 +73,8 @@ export interface StatusResponse {
   advisories: Record<string, Record<string, number>>;
   detections: { total: number; last24h: Record<DetectionVerdict, number> };
   lastRefresh: RefreshRun | null;
+  /** Null until the filter has reported since it was deployed. That is not the same as "not enforcing". */
+  enforcement: EnforcementInfo | null;
 }
 
 export interface AdvisoryRow {
