@@ -3,6 +3,48 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.3.0] - 2026-11-09
+
+### Features
+- **filter:** An ecosystem can be observe-only, and every reading of a download is decided (`2c3ae35`)
+- **bootstrap:** A census of a feed, and loading one ecosystem at a time (`03c9095`)
+- **gateway-rule:** Sync writes the desired rule and never changes whether it is enabled (`5fe3564`)
+- **core:** Cargo is a defined ecosystem, not yet an enabled one (`0779309`)
+- Enable Cargo (`ab745f5`)
+- **core:** Define RubyGems, not yet enabled (`9999f6b`)
+- Enable RubyGems (`b52c8a3`)
+- **core:** Define NuGet, not yet enabled (`899baf1`)
+- Enable NuGet (`e107182`)
+- **core:** Define Go, not yet enabled (`d3908b5`)
+- Enable Go (`227770e`)
+- **filter:** Tell the go command everything on the first line (`e30411f`)
+- **filter:** Report enforcement settings so the dashboard shows what is running (`b9d81e8`)
+- **admin:** Tabbed dashboard with an enforcement badge, a detail sheet and a warm theme (`1a3a2d5`)
+
+### Bug fixes
+- **core:** Read the CDN shape the legacy NuGet v2 endpoint redirects to (`44f003d`)
+- **filter:** Record a package's name the way the index keys it (`68eb54b`)
+- **filter:** Key the go command's block message on the ecosystem, not its User-Agent (`894ee74`)
+
+### Refactoring
+- An ecosystem is a registry entry, not a ternary (`07cfd70`)
+
+### Documentation
+- Roadmap for RubyGems, Cargo, NuGet and Go (`cd1884f`)
+- Roadmap test plan, and the malware is mostly already gone (`ef5556e`)
+- **roadmap:** Separate unreadable range boundaries from unreadable listed versions (`5c8d563`)
+- Describe the registry, observe-only ecosystems, census and sync (`5444bd9`)
+- **roadmap:** Record the outcome of Phase 0 (`be9b28b`)
+- **roadmap:** The Cargo spike result, and the real Gateway ecosystem strings (`2f7f92f`)
+- **roadmap:** Cargo malware is not all gone, and the census numbers are final (`73122f2`)
+- Cargo is live; record Phase 1, and teach the README and demo about it (`6741e6d`)
+- RubyGems is live; record Phase 2a, and teach the README and demo about it (`2e1419a`)
+- NuGet is live; record Phase 2b, and correct what its measurements overturned (`d83a928`)
+- Go is live; README and demo for six ecosystems, and what Go's measurements showed (`a8d6826`)
+- Bring AGENTS.md up to date with six ecosystems and what building them showed (`ea4dc05`)
+- Describe the dashboard, the enforcement report and how to test the UI (`697e435`)
+- Show the dashboard in the README (`d8ce92a`)
+
 ## [0.2.0] - 2026-11-07
 
 ### Features
@@ -57,3 +99,5 @@ Generated from [Conventional Commits](https://www.conventionalcommits.org) with 
 - **agents:** Document the admin Worker and its invariants (`5ed53a4`)
 - **agents:** Document the refresh pipeline and its invariants (`d04863a`)
 - README and a five-minute scripted demo (`4c0b1c4`)
+
+
