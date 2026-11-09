@@ -1,6 +1,6 @@
 # Roadmap: RubyGems, Cargo, Go and NuGet
 
-Status: **Phases 0, 1 (Cargo) and 2a (RubyGems) are done and live; Phase 2b (NuGet) is next.** PkgGuard enforces npm, PyPI, Cargo and RubyGems today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome), [Phase 1 outcome](#phase-1-outcome) and [Phase 2a outcome](#phase-2a-outcome).
+Status: **Phases 0, 1 (Cargo), 2a (RubyGems) and 2b (NuGet) are done and live; Phase 3 (Go) is next.** PkgGuard enforces npm, PyPI, Cargo, RubyGems and NuGet today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome), [Phase 1 outcome](#phase-1-outcome) and [Phase 2a outcome](#phase-2a-outcome) and [Phase 2b outcome](#phase-2b-outcome).
 
 **Maven is deliberately out of scope**, for two measured reasons recorded in [Maven](#maven-out-of-scope). The decision can be revisited.
 
@@ -52,9 +52,9 @@ Measured. "Malware" applies the repository's classifier: the `MAL-` ID prefix **
 | Go | 9,914 | 12.2 MB | 1,673 | 21 | 20 | Mostly logging |
 
 - **Volume is a non-issue.** The four add about 23 MB and about 20,400 records to roughly 246 MB and 258,000. About 9,600 more KV keys; no schema change (`ecosystem` is already `TEXT`).
-- **The blocking value is concentrated in RubyGems and NuGet.** Cargo and Go are, in practice, vulnerability-logging features, which PkgGuard does by design (CVEs are logged, never blocked).
+- **The blocking value is concentrated in NuGet.** *Measured* in the live phases: NuGet still serves 27 of 961 checked malicious versions, where RubyGems serves 1 of 4,897 versions and Cargo has 1 of 31 records with a downloadable version. Cargo, RubyGems and Go are, in practice, vulnerability-logging features, which PkgGuard does by design (CVEs are logged, never blocked). This corrects the planning-time expectation that RubyGems would also block.
 - **Almost all of Cargo's malware describes crates crates.io has already removed, but not all.** *Measured at the version level* (the registry index and the download endpoint, nothing downloaded): of the 31 malware rows, 27 name crates that are gone from the index, 3 are present with no affected version downloadable, and **1 still has a downloadable affected version: `append-only-vec` 0.1.9** (`MAL-2026-14333`, a release of a legitimate crate that gained a malicious dependency). That one is a real, live block target. Several records, such as `arrayref` 0.3.10, `internment` 0.8.7 and `append-only-vec` 0.1.9, are for a **single compromised version of a legitimate crate**; they list that version only, so the crate's other versions are unaffected.
-- **Most of these malware records describe packages the registry has already removed.** *Measured* with metadata requests only (nothing downloaded): of Cargo's 31, one still has a downloadable affected version (see below); none of Go's 21 can still be downloaded, and none of a random 80 each from RubyGems and NuGet. A public-registry block therefore matters only in the window between an OSV record appearing and the registry removing the package; that window was not measured. The blocking value is larger against **mirrors and caches** (Artifactory, Nexus and similar), which Gateway classifies by URL shape and which can keep serving a package the registry has dropped. Weigh the malware counts above with this in mind.
+- **Most of these malware records describe packages the registry has already removed.** *Measured* with metadata requests only (nothing downloaded): of Cargo's 31, one still has a downloadable affected version (see below); none of Go's 21 can still be downloaded, and none of a random 80 each from RubyGems and NuGet. **The NuGet figure was an undersample**: checking up to two versions of every malware package found 27 of 961 still downloadable (NuGet unlists but keeps the file), where RubyGems, checked the same way, had 1 of 4,897. A public-registry block therefore matters only in the window between an OSV record appearing and the registry removing the package; that window was not measured. The blocking value is larger against **mirrors and caches** (Artifactory, Nexus and similar), which Gateway classifies by URL shape and which can keep serving a package the registry has dropped. Weigh the malware counts above with this in mind.
 - **The classifier earns its keep again.** Ten of Cargo's 31 would be missed by a check on the record's own `MAL-` id: seven are found by the CWE rule alone (`GHSA-6v2j-vr4h-f632` and six others) and three by a `MAL-` alias (`rustdecimal`, twice, and `replit_ruspty`). This is the same lesson as `event-stream`.
 
 ## Maven: out of scope
@@ -343,7 +343,25 @@ The path version is NuGet's normalised form (a fourth zero part dropped, build m
 
 **Pinned fixtures.** `MAL-2024-11505` (`Bunifu.Form`), a mixed-case name that proves the lowercase fold works end to end. `GHSA-28xm-prxc-5866` (`OpenTelemetry.Sampler.AWS`) or another record with a four-part boundary, as the regression for the 26% case.
 
-**Unchecked.** Older NuGet clients use the v2 endpoint (`/api/v2/package/{id}/{version}`), which redirects to the flat container. Whether Gateway classifies the redirect target, and whether the first request is also classified, has not been checked. Test it in the live phase.
+**Measured in the live phase.** The v2 endpoint (`/api/v2/package/{id}/{version}`) does not redirect to the flat container: it redirects to `globalcdn.nuget.org/packages/{id}.{version}.nupkg`. Gateway forwards that request to the Worker, so a parser that reads only the flat container let v2 clients through. See the [Phase 2b outcome](#phase-2b-outcome).
+
+### Phase 2b outcome
+
+NuGet is live and enforcing, rolled out in the order this document gives.
+
+1. **Defined, not enabled**, with a .NET oracle for the comparator (NuGet's own `NuGet.Versioning` over the real feed, committed as JSON) and for the name fold. Every load-bearing line of the parser, comparator and spec was mutated; each mutation fails a test.
+2. **Data loaded** before enabling: 6,211 advisory rows (782 malware, 5,429 vulnerability) and 1,426 KV keys, 513 of them non-ASCII, with a D1 restore point first. Cargo and RubyGems were unchanged.
+3. **Enabled** and deployed observe-only; a manual refresh over five ecosystems completed with 0 errors; `gateway-rule sync` widened the rule (`"nuget"`).
+4. **Observed**, then **enforced**: `lib.harmony.net` 7.5.3 (`MAL-2024-4531`), a real malicious version still downloadable, was flagged and then blocked; a mixed-case URL for `Bunifu.Form` was blocked, so the lowercase fold works end to end; a CVE-only package was flagged and allowed; clean packages passed. A real `dotnet restore` of the malicious package exits 1 and extracts nothing. npm, PyPI, Cargo and RubyGems were re-checked and still block.
+5. **Cache gap confirmed**: a second `dotnet restore` with the package in the global packages folder made no request and added no row.
+
+Where it differs from the plan:
+
+- **Two rules the plan did not have.** Measured with NuGet's own library: each numeric part must fit an Int32 (`2147483648.0.0` is refused), and a numeric prerelease label may not have a leading zero (`1.0.0-01` is refused, `1.0.0-0` is not), while a numeric label has no size limit.
+- **Most NuGet malware is named with look-alike characters, and Gateway does not forward those downloads.** 513 of the 782 malware packages have non-ASCII ids (Cyrillic letters in `micrоsoft.entetyframeworkcore`). The Worker reads them correctly end to end, and the 513 are in the index, but Gateway never invokes the Worker for such a URL: of seven requests, the Worker's own invocation log showed the four ASCII ids and none of the three look-alikes. Five of the 27 still-downloadable malicious versions are look-alikes and pass. This was measured without touching the account, by counting invocations. It is the largest limit of the NuGet phase.
+- **The v2 endpoint redirects to a different host and shape, not to the flat container.** `www.nuget.org/api/v2/package/{id}/{version}` redirects to `globalcdn.nuget.org/packages/{id}.{version}.nupkg`. Gateway forwards that request, the Worker logged it as unrecognised, and it was served untouched: an older client bypassed PkgGuard. The shape holds the id and version joined by a dot, so it is solved as for RubyGems: every split whose tail NuGet accepts as a version is a candidate, and the index decides. Checked against all 37,878 distinct ASCII (id, version) pairs in the feed: the real reading was always a candidate, none reached the cap of eight, and the most any file produced was six. A real `dotnet restore` through a v2 feed is blocked.
+- **NuGet unlists malware and keeps the files.** 27 of 961 checked malicious versions were still downloadable, 22 of them blockable. This is the ecosystem where blocking matters, and it corrects the earlier "none of a random 80" (an undersample).
+- **The client retries a blocked download**, so one `dotnet restore` leaves several `blocked` rows. The terminal shows only the status line.
 
 ### Phase 3: Go
 
@@ -381,7 +399,7 @@ Gateway only classifies a download when the registry host is decrypted, and a cl
 | RubyGems | `rubygems.org` (and `index.rubygems.org` for metadata) |
 | Cargo | `static.crates.io` (`index.crates.io` and `crates.io` for metadata) |
 | Go | `proxy.golang.org` |
-| NuGet | `api.nuget.org` (the flat container, measured); check where a v2 redirect lands |
+| NuGet | `api.nuget.org` (the flat container) and `globalcdn.nuget.org` (where the v2 endpoint redirects), both measured |
 
 Extend the issuer-check loop in `docs/DEMO.md` with these hosts. For each client, record in the demo documentation what must be configured for it to trust the Gateway certificate; do not assume the operating-system store is enough.
 
@@ -477,7 +495,7 @@ Fill this in as each phase runs, and move the conclusions into the demo notes an
 |---|---|---|---|---|---|---|
 | Cargo | `static.crates.io/crates/{crate}/{version}/download` (the index's `dl` has no markers) | **Yes, both shapes** | `cargo` | **Yes** (Rust 1.99.1) | Gateway block: `failed to verify the checksum`. **PkgGuard 403: cargo prints the whole response body** (`failed to download … got 403`, then the explanation, advisory link and reference) and caches nothing | n/a |
 | RubyGems | `rubygems.org/gems/{name}-{version}[-{platform}].gem` (`gem fetch` also reads `specs.4.8.gz` and `quick/Marshal.4.8/…`) | **Plain `.gem` only.** Platform builds and `/downloads/…gem` are **not** classified | `gem` | **No**: the system Ruby 2.6 prints `Root certificate is not trusted`, then downloads | PkgGuard 403: `bad response Forbidden 403 (<url>)`, nothing from the body; exit 1, nothing saved | n/a |
-| NuGet | | | | | | n/a |
+| NuGet | `api.nuget.org/v3-flatcontainer/{id}/{version}/{id}.{version}.nupkg` (current clients), then `globalcdn.nuget.org/packages/{id}.{version}.nupkg` (legacy v2, via redirect from `www.nuget.org/api/v2/package/…`) | **Yes, both** for ASCII ids. **Not classified: ids containing non-ASCII characters** | `nuget` | **Yes** (.NET SDK 8.0) | PkgGuard 403: `Response status code does not indicate success: 403 (Forbidden)`, then an error naming the URL; exit 1, nothing extracted; the client retries | n/a |
 | Go | | | | | | |
 
 ## Definition of done
@@ -523,7 +541,7 @@ Open questions, each answered on the test device during its phase (results go in
 
 - How each of `gem`, `cargo`, `go` and `dotnet` renders a 403 from PkgGuard. (For Cargo, a *Gateway* block shows as a checksum error; PkgGuard's own 403 is still to be observed.)
 - Whether `go` falls through to `direct` on a 403.
-- Whether Gateway classifies NuGet's v2 redirect. (Cargo's `/download` shape and every ecosystem string are settled.)
+- (Settled: Cargo's `/download` shape, every ecosystem string, and NuGet's v2 redirect.)
 
 ## Method
 
