@@ -306,6 +306,9 @@ describe("no URL is read as two ecosystems", () => {
     "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.zip",
     "https://files.pythonhosted.org/packages/ab/cd/ef/foo-1.0.tar.xz",
     "https://mirror.example.com/artifactory/api/npm/npm-remote/lodash/-/lodash-4.17.21.tgz",
+    // NuGet's CDN shape has several readings by design, so it is held to this corpus rather than to the one-reading contract.
+    "https://globalcdn.nuget.org/packages/newtonsoft.json.13.0.3.nupkg?packageVersion=13.0.3",
+    "https://globalcdn.nuget.org/packages/serilog.3.1.0-rc.1.nupkg",
     "https://example.com/",
   ];
 

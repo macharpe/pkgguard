@@ -184,6 +184,71 @@ describe("parseNugetUrl: the flat container", () => {
   ])("is not a download: %s", (url) => expect(parse(url)).toEqual([]));
 });
 
+describe("parseNugetUrl: the CDN the legacy v2 endpoint redirects to", () => {
+  const cdn = (file: string, host = "https://globalcdn.nuget.org/packages") => parse(`${host}/${file}?packageVersion=x`);
+  const reading = (found: ReturnType<typeof parse>, name: string, version: string) => found.find((f) => f.name === name && f.version === version);
+
+  it("returns the real reading first, and the others after it", () => {
+    const found = cdn("newtonsoft.json.13.0.3.nupkg");
+    expect(found[0]).toEqual(pkg("newtonsoft.json", "13.0.3"));
+    // The same file name is also id `newtonsoft.json.13` at version `0.3`, and id `newtonsoft.json.13.0` at `3`.
+    expect(found).toEqual([pkg("newtonsoft.json", "13.0.3"), pkg("newtonsoft.json.13", "0.3"), pkg("newtonsoft.json.13.0", "3")]);
+  });
+  it("keeps a prerelease label that itself contains a dot", () => {
+    expect(reading(cdn("serilog.3.1.0-rc.1.nupkg"), "serilog", "3.1.0-rc.1")).toBeDefined();
+    expect(reading(cdn("fody.6.8.5.1001-preview.nupkg"), "fody", "6.8.5.1001-preview")).toBeDefined();
+  });
+  it("finds an id with a digit in it, and one that ends in a number", () => {
+    expect(cdn("log4net.2.0.8.nupkg")[0]).toEqual(pkg("log4net", "2.0.8"));
+    // `foo.1` at 2.0.0 and `foo` at 1.2.0.0 are the same file name: both readings are offered.
+    const found = cdn("foo.1.2.0.0.nupkg");
+    expect(reading(found, "foo", "1.2.0.0")).toBeDefined();
+    expect(reading(found, "foo.1", "2.0.0")).toBeDefined();
+  });
+  it("is blocked through the path the filter takes: parse, look up each reading, take the worst", () => {
+    const entry = buildKvEntry(distillFor(record("nuget-MAL-2024-11505.json"), ["nuget"]), "2026-11-09T00:00:00Z") as KvEntry;
+    const index = new Map<string, KvEntry>([[kvKey("nuget", "bunifu.form") ?? "", entry]]);
+    const decide = (file: string) =>
+      cdn(file).map((p) => {
+        const hit = index.get(kvKey("nuget", p.name) ?? "");
+        return { name: p.name, version: p.version, outcome: hit ? summarizeVerdict(evaluate("nuget", hit, p.version)).outcome : "allowed" };
+      });
+    expect(decide("bunifu.form.1.0.5.nupkg").map((r) => r.outcome)).toContain("blocked");
+    expect(decide("bunifu.form.9.9.9.nupkg").map((r) => r.outcome)).not.toContain("blocked");
+  });
+  it("tolerates a mirror's host and path prefix, and is case-insensitive about the segment and extension", () => {
+    expect(parse("https://mirror.example.com/artifactory/api/nuget/repo/packages/serilog.3.1.0.nupkg")[0]).toEqual(pkg("serilog", "3.1.0"));
+    expect(parse("https://globalcdn.nuget.org/Packages/serilog.3.1.0.NUPKG")[0]).toEqual(pkg("serilog", "3.1.0"));
+  });
+  it("keeps at most eight readings, the leftmost", () => {
+    // Each `1-a` token is a version with a prerelease, so every split is a valid reading.
+    const found = cdn(`a.${Array(10).fill("1-a").join(".")}.nupkg`);
+    expect(found).toHaveLength(8);
+    expect(found[0]?.name).toBe("a");
+  });
+  it("accepts an id at the length limit and refuses one beyond it", () => {
+    const ok = "a".repeat(100);
+    expect(cdn(`${ok}.1.0.0.nupkg`)[0]).toEqual(pkg(ok, "1.0.0"));
+    expect(cdn(`${ok}b.1.0.0.nupkg`).map((f) => f.name)).not.toContain(`${ok}b`);
+  });
+  it("offers a harmless reading for a file name that is also a valid id and version", () => {
+    // A numeric id is legal, and `serilog.1` at 0.0.0.0 is too: these cost a lookup, and cannot outvote a real package.
+    expect(cdn("3.1.0.nupkg").map((f) => f.name)).toEqual(["3", "3.1"]);
+    expect(cdn("serilog.1.0.0.0.0.nupkg")[0]).toEqual(pkg("serilog.1", "0.0.0.0"));
+  });
+  it.each([
+    "https://globalcdn.nuget.org/packages/serilog.nupkg",
+    "https://globalcdn.nuget.org/packages/serilog.latest.nupkg",
+    "https://globalcdn.nuget.org/packages/.3.1.0.nupkg",
+    "https://globalcdn.nuget.org/packages/serilog.3.1.0.nupkg.sha512",
+    "https://globalcdn.nuget.org/packages/serilog.3.1.0.nuspec",
+    "https://globalcdn.nuget.org/other/serilog.3.1.0.nupkg",
+    "https://globalcdn.nuget.org/serilog.3.1.0.nupkg",
+    "https://globalcdn.nuget.org/packages/ser%2Filog.3.1.0.nupkg",
+    "https://globalcdn.nuget.org/packages/%E0%A4%A.3.1.0.nupkg",
+  ])("is not a download: %s", (url) => expect(parse(url)).toEqual([]));
+});
+
 describe("NuGet names", () => {
   it("fold case and nothing else", () => {
     expect(normalizeName("nuget", "  Newtonsoft.Json ")).toBe("newtonsoft.json");
