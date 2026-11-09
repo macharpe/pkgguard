@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ECOSYSTEM_IDS, ENABLED_ECOSYSTEMS } from "../../packages/core/src/index.js";
+import { ECOSYSTEMS, ECOSYSTEM_IDS, ENABLED_ECOSYSTEMS } from "../../packages/core/src/index.js";
 import { assertGeneratedFor, defaultOutName, parseSyncStateIds, selectEcosystems } from "../lib/bootstrap-select.js";
 
 describe("selectEcosystems", () => {
@@ -33,8 +33,13 @@ describe("selectEcosystems", () => {
     expect(selectEcosystems("crates.io")).toEqual({ ecosystems: [{ ours: "cargo", osv: "crates.io" }], explicit: true });
     expect(defaultOutName(true, selectEcosystems("cargo").ecosystems)).toBe("out-cargo");
   });
-  it.each([[""], ["NPM"], ["Pypi"], ["constructor"], ["__proto__"], ["crates"], ["Cargo"], [" npm"], ["npm,pypi"], ["all"]])("refuses %j, listing what is valid", (bad) => {
-    expect(() => selectEcosystems(bad)).toThrow(/--ecosystem must name one of: npm \(OSV: npm\), pypi \(OSV: PyPI\), cargo \(OSV: crates\.io\)/);
+  it.each([[""], ["NPM"], ["Pypi"], ["constructor"], ["__proto__"], ["crates"], ["Cargo"], ["gem"], ["rubygem"], [" npm"], ["npm,pypi"], ["all"]])("refuses %j, listing what is valid", (bad) => {
+    const valid = ECOSYSTEM_IDS.map((id) => `${id} (OSV: ${ECOSYSTEMS[id].osvName})`).join(", ").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(() => selectEcosystems(bad)).toThrow(new RegExp(`--ecosystem must name one of: ${valid}`));
+  });
+  it("takes RubyGems by its id or by OSV's name for it", () => {
+    expect(selectEcosystems("rubygems")).toEqual({ ecosystems: [{ ours: "rubygems", osv: "RubyGems" }], explicit: true });
+    expect(selectEcosystems("RubyGems")).toEqual({ ecosystems: [{ ours: "rubygems", osv: "RubyGems" }], explicit: true });
   });
   it("never reads a flag with no value as 'all'", () => {
     expect(() => selectEcosystems("")).toThrow();

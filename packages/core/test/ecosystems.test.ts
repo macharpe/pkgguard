@@ -92,6 +92,21 @@ const FIXTURES: Record<Ecosystem, Fixture> = {
     overrideAccepts: ["serde-json", "tokio", "a1"],
     overrideRejects: ["", "..", "a/b", "a b", "-x", "Upper", "a_b", "a.b"],
   },
+  rubygems: {
+    downloads: [
+      { url: "https://rubygems.org/gems/rake-13.0.6.gem", pkg: { ecosystem: "rubygems", namespace: null, name: "rake", version: "13.0.6" } },
+      // A platform build: the platform is dropped and the reading is unambiguous.
+      { url: "https://rubygems.org/gems/nokogiri-1.16.2-x86_64-linux.gem", pkg: { ecosystem: "rubygems", namespace: null, name: "nokogiri", version: "1.16.2" } },
+    ],
+    notDownloads: ["https://rubygems.org/gems/rake", "https://rubygems.org/specs.4.8.gz", "https://rubygems.org/quick/Marshal.4.8/rake-13.0.6.gemspec.rz", "https://index.rubygems.org/versions"],
+    // `_` is kept: a gem named with one is not the gem named with a hyphen.
+    names: [["Rack", "rack"], ["  RAILS ", "rails"], ["3scale-time_range", "3scale-time_range"], ["3scale-time-range", "3scale-time-range"]],
+    ordered: ["1.0.0.a", "1.0.0.pre", "1.0.0.rc1", "1.0.0.rc2", "1.0.0", "1.0.1", "1.10.0", "2.0.0"],
+    unparseableVersion: "not-a-version",
+    osv: { record: record("RubyGems", "Rack_Test"), name: "rack_test", namespace: null },
+    overrideAccepts: ["rails", "rack-test", "a.b_c", "3scale-time_range"],
+    overrideRejects: ["", "..", "/x", "a b", "-x", "_x", "Upper", "a/b"],
+  },
 };
 
 const rowFor = (advisory: ReturnType<typeof distill>[number]): Record<string, unknown> =>
@@ -128,9 +143,9 @@ describe("the registry's data", () => {
   });
 
   it("uses the Gateway strings that were measured, not guessed", () => {
-    // Gateway's API refuses an unknown pkg.ecosystem, so these were learned by asking it. The ones still to come are
-    // "gem" for RubyGems and "golang" for Go (not "rubygems" and "go", which it refuses), and "nuget".
-    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo" });
+    // Gateway's API refuses an unknown pkg.ecosystem, so these were learned by asking it. RubyGems is "gem", not
+    // "rubygems", which it refuses. The ones still to come are "golang" for Go (not "go") and "nuget".
+    expect(Object.fromEntries(ECOSYSTEM_IDS.map((id) => [id, ECOSYSTEMS[id].gatewayName]))).toEqual({ npm: "npm", pypi: "pypi", cargo: "cargo", rubygems: "gem" });
   });
 
   it("recognises ids and enabled ids, and nothing else", () => {
