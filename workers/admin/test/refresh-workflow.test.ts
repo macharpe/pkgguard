@@ -38,7 +38,7 @@ const stubFetch = (...hs: Handler[]) => {
       if (r) return r;
     }
     // The other ecosystems are enabled too: unless a test routes them, they have nothing new.
-    if (["crates.io", "RubyGems", "NuGet"].some((dir) => url === csvUrl(dir))) return new Response("");
+    if (["crates.io", "RubyGems", "NuGet", "Go"].some((dir) => url === csvUrl(dir))) return new Response("");
     return new Response("", { status: 404 });
   });
 };
@@ -55,7 +55,7 @@ const records = (dir: string, ids: string[], eco: string, bad: Record<string, nu
 const seedState = (npm = "2026-11-05T00:00:00Z") =>
   env.DB.batch([
     env.DB.prepare("DELETE FROM sync_state"),
-    env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 1, '2026-11-01T00:00:00Z'), ('pypi', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('cargo', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('rubygems', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('nuget', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z')").bind(npm),
+    env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 1, '2026-11-01T00:00:00Z'), ('pypi', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('cargo', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('rubygems', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('nuget', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('go', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z')").bind(npm),
   ]);
 const startRow = () => env.DB.prepare("INSERT INTO refresh_runs (id, kind, trigger, status, started_at) VALUES (?, 'manual', 'test', 'queued', '2026-11-07T00:00:00Z')").bind(RUN).run();
 const drive = async (e: Parameters<typeof executeRefresh>[0] = env) => {

@@ -442,13 +442,23 @@
   },
   {
    "url": "https://proxy.golang.org/github.com/foo/packages/bar/@v/v0.0.0-20210101000000-0123456789ab.zip",
-   "pkg": null,
-   "purl": null
+   "pkg": {
+    "ecosystem": "go",
+    "namespace": null,
+    "name": "github.com/foo/packages/bar",
+    "version": "v0.0.0-20210101000000-0123456789ab"
+   },
+   "purl": "pkg:golang/github.com/foo/packages/bar@v0.0.0-20210101000000-0123456789ab"
   },
   {
    "url": "https://proxy.golang.org/github.com/foo/bar/@v/v1.2.3.zip",
-   "pkg": null,
-   "purl": null
+   "pkg": {
+    "ecosystem": "go",
+    "namespace": null,
+    "name": "github.com/foo/bar",
+    "version": "v1.2.3"
+   },
+   "purl": "pkg:golang/github.com/foo/bar@v1.2.3"
   },
   {
    "url": "https://rubygems.org/gems/rake-13.0.6.gem",

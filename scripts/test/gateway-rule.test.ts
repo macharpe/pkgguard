@@ -128,7 +128,7 @@ describe("buildPayload", () => {
       name: RULE_NAME,
       action: "forward",
       filters: ["http"],
-      traffic: 'pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget"}',
+      traffic: 'pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget" "golang"}',
       identity: 'identity.email in {"demo@example.com"}',
       rule_settings: { forward: { worker_id: WORKER_ID } },
       enabled: false,
@@ -260,8 +260,8 @@ describe("execute", () => {
     it("writes the desired rule over a drifted one, naming every field it changes", async () => {
       const r = await run("sync", { rules: [live(stale)] });
       expect(r.error).toBeUndefined();
-      expect(r.writes()).toEqual([expect.objectContaining({ method: "PUT", path: "/gateway/rules/live-id", body: expect.objectContaining({ traffic: 'pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget"}' }) })]);
-      expect(r.lines.join("\n")).toContain(`changing traffic: live ${JSON.stringify('pkg.ecosystem in {"npm"}')} -> ${JSON.stringify('pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget"}')}`);
+      expect(r.writes()).toEqual([expect.objectContaining({ method: "PUT", path: "/gateway/rules/live-id", body: expect.objectContaining({ traffic: 'pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget" "golang"}' }) })]);
+      expect(r.lines.join("\n")).toContain(`changing traffic: live ${JSON.stringify('pkg.ecosystem in {"npm"}')} -> ${JSON.stringify('pkg.ecosystem in {"npm" "pypi" "cargo" "gem" "nuget" "golang"}')}`);
       expect(r.lines.at(-1)).toMatch(/stays disabled/);
     });
     it.each([true, false])("never changes whether the rule is enabled (it was %s)", async (enabled) => {

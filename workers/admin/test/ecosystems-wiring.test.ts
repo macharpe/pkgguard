@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { ECOSYSTEMS, ENABLED_ECOSYSTEMS, type OsvRecord } from "@pkgguard/core";
+import { ECOSYSTEMS, ENABLED_ECOSYSTEMS, type Ecosystem, type OsvRecord } from "@pkgguard/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyRecords } from "../src/refresh/apply.js";
 import { OSV_BASE, fetchRecord, type FetchLike } from "../src/refresh/osv-fetch.js";
@@ -19,6 +19,10 @@ const pkg = (osvName: string, name: string) => ({
 const rec = (id: string, osvName: string, ...names: string[]) =>
   ({ id, modified: "2026-11-06T00:00:00Z", summary: "s", affected: names.map((n) => pkg(osvName, n)) }) as unknown as OsvRecord;
 
+/** What a package is called, per ecosystem. Most accept a bare word; a Go module path starts with a domain. */
+const NAME_PREFIX: Partial<Record<Ecosystem, string>> = { go: "example.com/" };
+const named = (id: Ecosystem, name: string): string => `${NAME_PREFIX[id] ?? ""}${name}`;
+
 const rows = async (id: string) =>
   (await env.DB.prepare("SELECT osv_id, package_name FROM advisories WHERE ecosystem = ? ORDER BY package_name").bind(id).all<{ osv_id: string; package_name: string }>()).results.map(
     (r) => `${r.osv_id}:${r.package_name}`,
@@ -36,15 +40,16 @@ describe.each(ENABLED_ECOSYSTEMS)("enabled ecosystem %s", (id) => {
 
   it("loses a package's rows and KV entry when its record stops listing it", async () => {
     const deps = { db: env.DB, kv: env.PKG_INDEX, now: NOW };
-    await applyRecords(deps, [rec("GHSA-wire-0001", spec.osvName, "alpha", "beta")]);
-    expect(await rows(id)).toEqual(["GHSA-wire-0001:alpha", "GHSA-wire-0001:beta"]);
-    expect(await env.PKG_INDEX.get(`${id}:alpha`)).not.toBeNull();
-    expect(await env.PKG_INDEX.get(`${id}:beta`)).not.toBeNull();
+    const [alpha, beta] = [named(id, "alpha"), named(id, "beta")] as const;
+    await applyRecords(deps, [rec("GHSA-wire-0001", spec.osvName, alpha, beta)]);
+    expect(await rows(id)).toEqual([`GHSA-wire-0001:${alpha}`, `GHSA-wire-0001:${beta}`]);
+    expect(await env.PKG_INDEX.get(`${id}:${alpha}`)).not.toBeNull();
+    expect(await env.PKG_INDEX.get(`${id}:${beta}`)).not.toBeNull();
 
-    await applyRecords(deps, [rec("GHSA-wire-0001", spec.osvName, "alpha")]);
-    expect(await rows(id)).toEqual(["GHSA-wire-0001:alpha"]);
-    expect(await env.PKG_INDEX.get(`${id}:beta`), "the dropped package's KV entry is gone").toBeNull();
-    expect(await env.PKG_INDEX.get(`${id}:alpha`)).not.toBeNull();
+    await applyRecords(deps, [rec("GHSA-wire-0001", spec.osvName, alpha)]);
+    expect(await rows(id)).toEqual([`GHSA-wire-0001:${alpha}`]);
+    expect(await env.PKG_INDEX.get(`${id}:${beta}`), "the dropped package's KV entry is gone").toBeNull();
+    expect(await env.PKG_INDEX.get(`${id}:${alpha}`)).not.toBeNull();
   });
 
   it("is fetched from the directory OSV calls it", async () => {
@@ -70,7 +75,8 @@ describe.each(ENABLED_ECOSYSTEMS)("enabled ecosystem %s", (id) => {
   });
 
   it("is accepted as an override target, with the guards every ecosystem shares", () => {
-    expect(parseOverrideInput({ ecosystem: id, mode: "block", name: "ab" })).toMatchObject({ ecosystem: id, name: "ab" });
+    const ab = named(id, "ab");
+    expect(parseOverrideInput({ ecosystem: id, mode: "block", name: ab })).toMatchObject({ ecosystem: id, name: ab });
     // ".." is not here: PyPI folds a run of separators to "-", which its pattern accepts (the stored key is "-", so it
     // is harmless). npm rejects it, and overrides.test.ts covers that.
     for (const name of ["", "a b", "a//b", "/x"]) {

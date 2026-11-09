@@ -108,7 +108,7 @@ describe("applyRecords: a record that changes", () => {
   it("clears the rows and KV when a record no longer affects any package in scope", async () => {
     const r = rec({ id: "GHSA-gone-0001", affected: [pkg("npm", "was-here")] });
     await apply(r);
-    await apply({ ...r, affected: [pkg("Go", "example.com/mod")] });
+    await apply({ ...r, affected: [pkg("Maven", "a:b")] });
     expect(await rows("GHSA-gone-0001")).toEqual([]);
     expect(await kvGet("npm:was-here")).toBeNull();
   });
@@ -125,7 +125,7 @@ describe("applyRecords: ecosystems and names", () => {
     expect(await kvGet("npm:@scope/name")).not.toBeNull();
   });
   it("ignores ecosystems out of scope", async () => {
-    const result = await apply(rec({ id: "GHSA-go-1", affected: [pkg("Go", "example.com/mod"), pkg("Maven", "a:b")] }));
+    const result = await apply(rec({ id: "GHSA-out-1", affected: [pkg("Maven", "a:b"), pkg("Packagist", "vendor/pkg"), pkg("Hex", "plug")] }));
     expect(result.packages).toBe(0);
     expect(await rows()).toEqual([]);
     expect((await env.PKG_INDEX.list()).keys).toEqual([]);
