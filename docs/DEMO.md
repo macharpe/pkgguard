@@ -24,14 +24,14 @@ Do this ten minutes ahead, not in front of people.
    If either is gone, find another entry the index flags as malware that is still downloadable, and use it throughout.
 4. **The client device is enrolled, its Cloudflare One session is active, and its registry traffic is decrypted.** Without an identity, the rule does not match and nothing is filtered. Being in the rule's scope is not enough: if the user is still covered by your Do Not Inspect exemption, malware downloads silently and the dashboard stays empty. Check the TLS issuer, which must name Cloudflare, not the registry's own CA, for each host:
    ```bash
-   for h in registry.npmjs.org pypi.org files.pythonhosted.org static.crates.io index.crates.io rubygems.org index.rubygems.org api.nuget.org globalcdn.nuget.org; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
+   for h in registry.npmjs.org pypi.org files.pythonhosted.org static.crates.io index.crates.io rubygems.org index.rubygems.org api.nuget.org globalcdn.nuget.org proxy.golang.org; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
    ```
 5. **Open three windows:** a terminal on the enrolled device, the dashboard at `https://pkgguard.example.com`, and the Chat space that receives alerts.
 6. **Warm the dashboard with real traffic, but not with the package you will block live.** Run the clean installs from act 2 once, so the feed is not empty.
 
 > **Alerts are limited to one per package, per user, per hour.** If you warm up by blocking `vfat-tools` and then block it again in the demo within the hour, the second block is recorded but sends **no Chat message**. Warm up with a different malware package, or block your live one for the first time on stage.
 
-> **pip serves a cached package without touching the network**, so PkgGuard never sees it and the dashboard gets no new row. Use `--no-cache-dir` for every pip command in the demo. cargo does the same from its registry cache, gem from `$GEM_HOME/cache` (use `gem fetch`, which always downloads, rather than `gem install`), and NuGet from `~/.nuget/packages` (remove the package's folder there before a NuGet step), so before a cargo step remove the crate's cached archive: `rm -f "${CARGO_HOME:-$HOME/.cargo}"/registry/cache/*/<crate>-<version>.crate`. npm behaves the same for `npm install` of a package it has cached, so warm up with a package the audience will not reinstall, and expect no new row on a repeat.
+> **pip serves a cached package without touching the network**, so PkgGuard never sees it and the dashboard gets no new row. Use `--no-cache-dir` for every pip command in the demo. cargo does the same from its registry cache, gem from `$GEM_HOME/cache` (use `gem fetch`, which always downloads, rather than `gem install`), NuGet from `~/.nuget/packages` (remove the package's folder there before a NuGet step), and Go from its module cache (`go clean -modcache`, or a fresh `GOMODCACHE`), so before a cargo step remove the crate's cached archive: `rm -f "${CARGO_HOME:-$HOME/.cargo}"/registry/cache/*/<crate>-<version>.crate`. npm behaves the same for `npm install` of a package it has cached, so warm up with a package the audience will not reinstall, and expect no new row on a repeat.
 
 Work in a scratch directory so a successful download leaves nothing behind: `cd "$(mktemp -d)"`.
 
@@ -108,6 +108,17 @@ dotnet restore    # restore only: nothing is built or run
 ```
 
 With enforcement on, `dotnet restore` fails with `403 (Forbidden)` and unpacks nothing; as with pip and gem, the explanation is in the dashboard and the Chat alert, not the terminal. The client retries, so expect several dashboard rows for one attempt. Say what it does not cover: Gateway does not forward packages whose id contains non-ASCII characters, which is how most NuGet malware is named.
+
+### 3e. The same rule, for Go (+0:45) *optional*
+
+Be straight about this one: the public Go module proxy already refuses malicious modules (`403 … SECURITY ERROR … considers this module to be malicious`), so there is **no malicious module to download** and nothing for PkgGuard to catch there. What it does do is block against a mirror or private proxy that lacks that protection, and the block itself works the same. So show it with an override: in the dashboard's **Overrides** panel add a **Block** for ecosystem `go`, package `github.com/pkg/errors`, version `v0.9.1`, and wait a few seconds for it to apply.
+
+```bash
+cd "$(mktemp -d)" && printf 'module example.com/demo\n\ngo 1.22\n' > go.mod
+GOFLAGS=-mod=mod GOMODCACHE="$PWD/mod" go mod download github.com/pkg/errors@v0.9.1
+```
+
+`go` stops with `403 Forbidden` and then one line that names the package, the reason, and the reference to quote. It prints only the first line of the body, which is why that line carries everything. Remove the override afterwards, and show that the same command now downloads (another version, `v0.9.0`, was never affected). Tell the audience what to expect in the dashboard: **two** rows per blocked attempt, because `go` retries any 4xx once.
 
 ### 4. What the developer sees in a browser (2:45 – 3:15) *optional*
 
