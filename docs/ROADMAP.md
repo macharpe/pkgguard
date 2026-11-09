@@ -1,6 +1,6 @@
 # Roadmap: RubyGems, Cargo, Go and NuGet
 
-Status: **Phases 0 and 1 (Cargo) are done and live; Phase 2a (RubyGems) is next.** PkgGuard enforces npm and PyPI today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome) and [Phase 1 outcome](#phase-1-outcome).
+Status: **Phases 0, 1 (Cargo) and 2a (RubyGems) are done and live; Phase 2b (NuGet) is next.** PkgGuard enforces npm, PyPI, Cargo and RubyGems today. This document is the plan for adding four more ecosystems: Cargo, RubyGems, NuGet and Go, in that order. See [Phase 0 outcome](#phase-0-outcome), [Phase 1 outcome](#phase-1-outcome) and [Phase 2a outcome](#phase-2a-outcome).
 
 **Maven is deliberately out of scope**, for two measured reasons recorded in [Maven](#maven-out-of-scope). The decision can be revisited.
 
@@ -308,6 +308,25 @@ Cost: each extra candidate is a KV read, and on a miss a live OSV query. Cap the
 
 **Pinned fixtures.** `MAL-2026-7711` (`gemxy-1778522681`) for the name-ambiguity case, a platform-suffixed gem for the other direction, and a `GHSA-` record with a four-part range (`3.0.4.1`).
 
+### Phase 2a outcome
+
+RubyGems is live and enforcing, rolled out in the order this document gives.
+
+1. **Defined, not enabled** (`9999f6b`), with a Ruby oracle for the comparator (`e3faade`). Every load-bearing line of the parser, comparator and spec was mutated; each mutation fails a test, apart from one equivalent mutant.
+2. **Data loaded** before enabling: 5,533 advisory rows (4,315 malware, 1,218 vulnerability) and 4,748 KV keys, with a D1 restore point taken first. Cargo was unchanged; npm and PyPI had moved only by the scheduled refresh.
+3. **Enabled** (`b52c8a3`) and deployed observe-only. A manual refresh over four ecosystems completed with 0 errors, and `gateway-rule sync` widened the rule (`"gem"`).
+4. **Observed**, then **enforced**: `resource_registry` 1.0.22 (`MAL-2025-6348`), a real malicious version still downloadable, was flagged and then blocked; the three look-alike names (`gemxy-1778522681`, `southnews-test-35329`, `zztemp-ssf-2605`) were each blocked under their **correct** name, the case the candidate design exists for; a CVE-only gem was flagged and allowed; clean gems passed. npm, PyPI and Cargo were re-checked and still block.
+5. **Cache gap confirmed**: with the `.gem` already in a gem home's cache, `gem install` made no request and added no row.
+
+Where it differs from the plan:
+
+- **The comparator oracle needed a current RubyGems.** The system Ruby's RubyGems 3.0.3.1 compared raw segments and disagreed with current clients on prereleases after a zero (`2.2.rc15` against `2.2.0.beta`), so the first fixture was wrong. The oracle now loads a pinned `version.rb` standalone, and a test refuses a fixture from anything older. A blank version is also refused, where Ruby reads it as `0`.
+- **Gateway classifies only the plain `/gems/{name}-{version}.gem` shape.** Measured with a temporary scoped rule (deleted, rule list verified identical): a platform build (`-x86_64-linux`, `-java`, `-x64-mingw-ucrt`) and the legacy `/downloads/` path passed untouched. PkgGuard is never invoked for them. The parser still handles platform names, but this makes the platform handling in this document's design matter less than planned, and a platform-only malicious build would not be seen. Recorded as a limitation in the README.
+- **RubyGems malware is almost entirely gone from the registry.** Checking up to two versions of each of 4,315 malware gems (4,897 requests, metadata only), one was still downloadable. The registry answers a removed gem with an S3 `AccessDenied` 403, which looks like a block and is not: tell them apart by the `PG-` reference in the body.
+- **What `gem` prints on a block is the least informative of the four**: `bad response Forbidden 403 (<url>)`, with nothing from the body, as with pip.
+- **Enabling changed the lodash advisory's rows**: it also names the RubyGems package `lodash-rails`, so it gained a row. The golden snapshot changed in exactly two entries, both reviewed.
+- **macOS's bundled Ruby 2.6 prints an SSL warning** through Gateway's decryption and still downloads. `SSL_CERT_FILE` did not silence it; a newer Ruby was not tested.
+
 ### Phase 2b: NuGet
 
 | Item | Design |
@@ -457,7 +476,7 @@ Fill this in as each phase runs, and move the conclusions into the demo notes an
 | Ecosystem | URL shape requested | Classified by Gateway | `PackageInfo.Ecosystem` | Trusts the certificate unaided | Client output on 403 | Falls through on 403 |
 |---|---|---|---|---|---|---|
 | Cargo | `static.crates.io/crates/{crate}/{version}/download` (the index's `dl` has no markers) | **Yes, both shapes** | `cargo` | **Yes** (Rust 1.99.1) | Gateway block: `failed to verify the checksum`. **PkgGuard 403: cargo prints the whole response body** (`failed to download … got 403`, then the explanation, advisory link and reference) and caches nothing | n/a |
-| RubyGems | | | | | | n/a |
+| RubyGems | `rubygems.org/gems/{name}-{version}[-{platform}].gem` (`gem fetch` also reads `specs.4.8.gz` and `quick/Marshal.4.8/…`) | **Plain `.gem` only.** Platform builds and `/downloads/…gem` are **not** classified | `gem` | **No**: the system Ruby 2.6 prints `Root certificate is not trusted`, then downloads | PkgGuard 403: `bad response Forbidden 403 (<url>)`, nothing from the body; exit 1, nothing saved | n/a |
 | NuGet | | | | | | n/a |
 | Go | | | | | | |
 

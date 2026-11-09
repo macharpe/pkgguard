@@ -24,14 +24,14 @@ Do this ten minutes ahead, not in front of people.
    If either is gone, find another entry the index flags as malware that is still downloadable, and use it throughout.
 4. **The client device is enrolled, its Cloudflare One session is active, and its registry traffic is decrypted.** Without an identity, the rule does not match and nothing is filtered. Being in the rule's scope is not enough: if the user is still covered by your Do Not Inspect exemption, malware downloads silently and the dashboard stays empty. Check the TLS issuer, which must name Cloudflare, not the registry's own CA, for each host:
    ```bash
-   for h in registry.npmjs.org pypi.org files.pythonhosted.org static.crates.io index.crates.io; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
+   for h in registry.npmjs.org pypi.org files.pythonhosted.org static.crates.io index.crates.io rubygems.org index.rubygems.org; do printf '%-24s ' $h; curl -sv -m 8 -o /dev/null https://$h/ 2>&1 | grep -E '^\*  issuer'; done
    ```
 5. **Open three windows:** a terminal on the enrolled device, the dashboard at `https://pkgguard.example.com`, and the Chat space that receives alerts.
 6. **Warm the dashboard with real traffic, but not with the package you will block live.** Run the clean installs from act 2 once, so the feed is not empty.
 
 > **Alerts are limited to one per package, per user, per hour.** If you warm up by blocking `vfat-tools` and then block it again in the demo within the hour, the second block is recorded but sends **no Chat message**. Warm up with a different malware package, or block your live one for the first time on stage.
 
-> **pip serves a cached package without touching the network**, so PkgGuard never sees it and the dashboard gets no new row. Use `--no-cache-dir` for every pip command in the demo. cargo does the same from its registry cache, so before a cargo step remove the crate's cached archive: `rm -f "${CARGO_HOME:-$HOME/.cargo}"/registry/cache/*/<crate>-<version>.crate`. npm behaves the same for `npm install` of a package it has cached, so warm up with a package the audience will not reinstall, and expect no new row on a repeat.
+> **pip serves a cached package without touching the network**, so PkgGuard never sees it and the dashboard gets no new row. Use `--no-cache-dir` for every pip command in the demo. cargo does the same from its registry cache, and gem from `$GEM_HOME/cache` (use `gem fetch`, which always downloads, rather than `gem install`), so before a cargo step remove the crate's cached archive: `rm -f "${CARGO_HOME:-$HOME/.cargo}"/registry/cache/*/<crate>-<version>.crate`. npm behaves the same for `npm install` of a package it has cached, so warm up with a package the audience will not reinstall, and expect no new row on a repeat.
 
 Work in a scratch directory so a successful download leaves nothing behind: `cd "$(mktemp -d)"`.
 
@@ -84,6 +84,17 @@ cargo fetch        # nothing is built or run; the archive is only downloaded
 ```
 
 With enforcement on, cargo prints the whole explanation (package, reason, advisory link, reference) and leaves nothing in its cache. Every other version of `append-only-vec` installs normally: the record names one version.
+
+### 3c. The same rule, for RubyGems (+0:45) *optional*
+
+`resource_registry` 1.0.22 is listed in OSV as malware (`MAL-2025-6348`, found by OpenSSF Package Analysis) and was still downloadable when this was written. Almost every other malicious gem has been removed from the registry, so **check it still is** first. The registry answers a removed gem with a 403 too, so tell the two apart by the body: PkgGuard's contains a `PG-` reference.
+
+```bash
+curl -s -r 0-0 https://rubygems.org/gems/resource_registry-1.0.22.gem | grep -o 'PG-[A-Z0-9]*' | head -1   # a reference with enforcement on; nothing with it off
+cd "$(mktemp -d)" && gem fetch resource_registry -v 1.0.22    # downloads only; nothing is installed or opened
+```
+
+With enforcement on, `gem fetch` exits 1 with `bad response Forbidden 403` and saves nothing. As with pip, the explanation is not in the terminal: show the dashboard row and the Chat alert. Say what it does not cover: Gateway only classifies plain `.gem` downloads, not platform builds.
 
 ### 4. What the developer sees in a browser (2:45 – 3:15) *optional*
 
