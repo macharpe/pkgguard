@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.3.1] - 2026-11-09
+
+### Documentation
+- Say which files are published (`216ffb5`)
+
 ## [0.3.0] - 2026-11-09
 
 ### Features
