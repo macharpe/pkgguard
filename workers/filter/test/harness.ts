@@ -1,6 +1,6 @@
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 import type { GatewayMiddlewareContext } from "@cloudflare/zt-types";
-import { buildKvEntry, distill, kvKey, type OsvRecord } from "@pkgguard/core";
+import { buildKvEntry, distillFor, kvKey, type Ecosystem, type OsvRecord } from "@pkgguard/core";
 import { vi } from "vitest";
 import { GatewayMiddleware } from "../src/index.js";
 import type { Env } from "../src/env.js";
@@ -68,8 +68,8 @@ export async function reset(): Promise<void> {
 }
 
 /** Seeds the index exactly the way the bootstrap would: distill, then buildKvEntry. */
-export async function seed(record: OsvRecord, ecosystem: "npm" | "pypi", name: string): Promise<void> {
-  const rows = distill(record).filter((r) => r.ecosystem === ecosystem && r.packageName === name);
+export async function seed(record: OsvRecord, ecosystem: Ecosystem, name: string): Promise<void> {
+  const rows = distillFor(record, [ecosystem]).filter((r) => r.ecosystem === ecosystem && r.packageName === name);
   const entry = buildKvEntry(rows, "2026-11-06T00:00:00Z");
   const key = kvKey(ecosystem, name);
   if (!entry || !key) throw new Error(`cannot seed ${name}`);

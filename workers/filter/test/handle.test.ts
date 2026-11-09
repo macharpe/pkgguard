@@ -151,6 +151,11 @@ describe("index hits", () => {
     expect(row).toMatchObject({ ecosystem: "pypi", package_name: "ctx", reason: "osv-malware" });
   });
 
+  it("records a PyPI name the way the index keys it, not just lowercased", async () => {
+    await run(`${PYPI}/Flask_Cors-4.0.0.tar.gz`, { env: { ...ENFORCING, OSV_API_TIMEOUT_MS: "0" } });
+    expect((await detections())[0]).toMatchObject({ ecosystem: "pypi", package_name: "flask-cors" });
+  });
+
   it("blocks a scoped npm package", async () => {
     await env.PKG_INDEX.put(
       "npm:@scope/evil",

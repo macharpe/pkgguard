@@ -1,4 +1,4 @@
-import { toPurl, type ParsedPackage } from "@pkgguard/core";
+import { normalizeName, toPurl, type ParsedPackage } from "@pkgguard/core";
 import type { Decision, DetectionVerdict } from "./decide.js";
 import { fullName } from "./decide.js";
 
@@ -25,7 +25,8 @@ export async function recordDetection(
     .bind(
       now,
       pkg.ecosystem,
-      fullName(pkg).toLowerCase(),
+      // The name as the index keys it. Lowercasing here would merge two Go modules that differ only by case.
+      normalizeName(pkg.ecosystem, fullName(pkg)),
       pkg.version,
       toPurl(pkg),
       verdict,
