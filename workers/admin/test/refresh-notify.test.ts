@@ -118,12 +118,13 @@ describe("notifications inside a refresh run", () => {
       if (url === `${OSV_BASE}/npm/modified_id.csv`) return new Response(ids.map((id, i) => `2026-11-06T00:00:${String(i).padStart(2, "0")}Z,${id}`).join("\n") + "\n");
       if (url === `${OSV_BASE}/PyPI/modified_id.csv`) return new Response("");
       if (url === `${OSV_BASE}/crates.io/modified_id.csv`) return new Response("");
+      if (url === `${OSV_BASE}/RubyGems/modified_id.csv`) return new Response("");
       const m = /\/npm\/(.+)\.json$/.exec(url);
       return m ? Response.json({ id: m[1], modified: "2026-11-06T00:00:00Z", affected: [pkg(String(m[1]).toLowerCase())] }) : new Response("", { status: 404 });
     });
     return posted;
   };
-  const seedState = () => env.DB.batch([env.DB.prepare("DELETE FROM sync_state"), env.DB.prepare("INSERT INTO sync_state VALUES ('npm','2026-11-05T00:00:00Z',1,'x'),('pypi','2026-11-05T00:00:00Z',1,'x'),('cargo','2026-11-05T00:00:00Z',1,'x')")]);
+  const seedState = () => env.DB.batch([env.DB.prepare("DELETE FROM sync_state"), env.DB.prepare("INSERT INTO sync_state VALUES ('npm','2026-11-05T00:00:00Z',1,'x'),('pypi','2026-11-05T00:00:00Z',1,'x'),('cargo','2026-11-05T00:00:00Z',1,'x'),('rubygems','2026-11-05T00:00:00Z',1,'x')")]);
   const startRow = () => env.DB.prepare("INSERT INTO refresh_runs (id, kind, trigger, status, started_at) VALUES (?, 'daily', 'cron', 'queued', '2026-11-07T00:00:00Z')").bind(RUN).run();
 
   beforeEach(async () => {

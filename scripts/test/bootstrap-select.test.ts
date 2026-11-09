@@ -11,6 +11,7 @@ describe("selectEcosystems", () => {
       { ours: "npm", osv: "npm" },
       { ours: "pypi", osv: "PyPI" },
       { ours: "cargo", osv: "crates.io" },
+      { ours: "rubygems", osv: "RubyGems" },
     ]);
   });
   it.each([["pypi"], ["PyPI"]])("takes one ecosystem by id or by OSV's name: %s", (name) => {
@@ -79,7 +80,7 @@ describe("assertGeneratedFor", () => {
     // Written when only those two existed. Taken for the current, larger set it would load a database missing Cargo.
     const legacy = [{ ours: "npm" as const, osv: "npm" }, { ours: "pypi" as const, osv: "PyPI" }];
     expect(() => assertGeneratedFor(undefined, legacy)).not.toThrow();
-    expect(() => assertGeneratedFor(undefined, all)).toThrow(/generated for \[npm, pypi\], but this load is for \[npm, pypi, cargo\]/);
+    expect(() => assertGeneratedFor(undefined, all)).toThrow(/generated for \[npm, pypi\], but this load is for \[npm, pypi, cargo, rubygems\]/);
     expect(() => assertGeneratedFor(undefined, pypi)).toThrow(/generated for \[npm, pypi\], but this load is for \[pypi\]/);
   });
   it("refuses a single-ecosystem directory for a full load, and the reverse", () => {

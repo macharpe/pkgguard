@@ -18,8 +18,11 @@ function entryFor(id: string, ecosystem: "npm" | "pypi", name: string): KvEntry 
 describe("distill — structure", () => {
   it("emits one row per affected package, in scope only", () => {
     const rows = distill(fixture("GHSA-35jh-r3h4-6jhm"));
-    expect(rows.map((r) => r.packageName).sort()).toEqual(["lodash", "lodash-es", "lodash-template", "lodash.template"]);
-    expect(rows.every((r) => r.ecosystem === "npm")).toBe(true);
+    const named = (eco: string) => rows.filter((r) => r.ecosystem === eco).map((r) => r.packageName).sort();
+    expect(named("npm")).toEqual(["lodash", "lodash-es", "lodash-template", "lodash.template"]);
+    // The same advisory also names a RubyGems package (lodash-rails), in scope now that RubyGems is enabled.
+    expect(named("rubygems")).toEqual(["lodash-rails"]);
+    expect(rows).toHaveLength(5);
   });
   it("one record affecting two packages yields two rows (event-stream + flatmap-stream)", () => {
     const rows = distill(fixture("GHSA-mh6f-8j2x-4483"));
