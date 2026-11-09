@@ -16,8 +16,11 @@ const req = (headers: Record<string, string> = {}) => ({ headers: new Headers(he
 const BROWSER = { accept: "text/html,application/xhtml+xml,*/*;q=0.8", "user-agent": "Mozilla/5.0" };
 const NPM = { accept: "*/*", "user-agent": "npm/11.18.0 node/v24.18.0 darwin arm64 workspaces/false" };
 const PIP = { accept: "*/*", "user-agent": 'pip/26.2.2 {"installer":{"name":"pip"}}' };
-// What the go command sends, captured from a real go 1.27.
+// What the go command sends, captured from a real go 1.27: its first request, and the retry it makes after any 4xx, which has no
+// User-Agent of its own and so arrives with Go's default.
 const GO = { "user-agent": "GoCommand/1 (+https://go.dev/cmd/go)" };
+const GO_RETRY = { "user-agent": "Go-http-client/2.0" };
+const GO_PKG = { ecosystem: "go" as const, namespace: null, name: "github.com/pkg/errors", version: "v0.9.1" };
 
 describe("clientKind", () => {
   it("sends a browser the page, whatever its User-Agent says", () => {
@@ -33,12 +36,17 @@ describe("clientKind", () => {
     (ua) => expect(clientKind(req({ accept: "*/*", "user-agent": ua }))).toBe("plain"),
   );
   it("copes with no headers at all", () => expect(clientKind(req())).toBe("plain"));
-  it("recognises the go command by its own User-Agent, and no other Go program", () => {
-    expect(clientKind(req(GO))).toBe("go");
-    for (const ua of ["Go-http-client/1.1", "Go-http-client/2.0", "go/1.27", "MyGoCommand/1", "xGoCommand/1"]) expect(clientKind(req({ "user-agent": ua })), ua).toBe("plain");
+  it("treats a Go module download as the go command's, whatever the User-Agent says: its retry has none of its own", () => {
+    for (const ua of [GO["user-agent"], GO_RETRY["user-agent"], "Go-http-client/1.1", "curl/8.7.1", "", "npm/11.0.0"]) {
+      expect(clientKind(req({ "user-agent": ua }), GO_PKG), JSON.stringify(ua)).toBe("go");
+    }
+    expect(clientKind(req(), GO_PKG)).toBe("go");
   });
-  it("still sends a browser the page, whatever it says", () => {
-    expect(clientKind(req({ accept: "text/html", ...GO }))).toBe("browser");
+  it("does not take a Go User-Agent on another ecosystem's download for the go command", () => {
+    for (const h of [GO, GO_RETRY]) expect(clientKind(req(h), pkg), JSON.stringify(h)).toBe("plain");
+  });
+  it("still sends a browser the page for a Go module", () => {
+    expect(clientKind(req({ accept: "text/html", ...GO }), GO_PKG)).toBe("browser");
   });
 });
 
@@ -91,14 +99,16 @@ describe("blockResponse: what each client receives", () => {
   });
 
   describe("the go command, which prints only the first line of the body", () => {
-    const goPkg = { ecosystem: "go" as const, namespace: null, name: "github.com/pkg/errors", version: "v0.9.1" };
-    it("says everything on that first line: package, reason, advisory, reference and where to ask", async () => {
-      const r = blockResponse(req(GO), goPkg, decision(), REF);
-      expect(r.headers.get("content-type")).toBe("text/plain; charset=utf-8");
-      const first = (await r.text()).split("\n")[0] as string;
-      expect(first).toBe(
-        "Blocked by PkgGuard: github.com/pkg/errors@v0.9.1 is listed as malware. Advisory https://osv.dev/vulnerability/GHSA-mh6f-8j2x-4483. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.",
-      );
+    const goPkg = GO_PKG;
+    it("says everything on that first line, on both requests the go command makes: package, reason, advisory, reference and where to ask", async () => {
+      for (const h of [GO, GO_RETRY]) {
+        const r = blockResponse(req(h), goPkg, decision(), REF);
+        expect(r.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+        const first = (await r.text()).split("\n")[0] as string;
+        expect(first).toBe(
+          "Blocked by PkgGuard: github.com/pkg/errors@v0.9.1 is listed as malware. Advisory https://osv.dev/vulnerability/GHSA-mh6f-8j2x-4483. Need it anyway? Ask in the PkgGuard space in Google Chat and quote PG-7Q2K4M.",
+        );
+      }
     });
     it("names an administrator, not OSV, for an override, and has no advisory to cite", async () => {
       const first = (await blockResponse(req(GO), goPkg, decision({ reason: "override", osvIds: [] }), REF).text()).split("\n")[0] as string;

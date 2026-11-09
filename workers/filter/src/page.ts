@@ -12,6 +12,11 @@ import { fullName } from "./decide.js";
  * - The go command prints `server response:` and the FIRST LINE of a plain-text body, and nothing after it. Verified against
  *   real go 1.27 behind Gateway, and against a local server for a multi-line body. So for it the first line carries
  *   everything: the package, the reason, the advisory, the reference and where to ask.
+ * - The go command sends every blocked download twice, and prints the SECOND response. After any HTTPS 4xx it discards the
+ *   response and retries with a fresh request (cmd/go/internal/web, the GOAUTH retry), which is built without the User-Agent
+ *   the first one had: it arrives as `Go-http-client/…`. So the go command cannot be told apart by User-Agent, which is the
+ *   request that matters; the ecosystem of the package being downloaded is the reliable signal. (It also means every blocked
+ *   Go download leaves two rows and two references; the developer sees the second.)
  * - The HTTP reason phrase is printed by both clients when it arrives, but Gateway replaces it with the standard
  *   one, so it is best-effort and carries nothing that is not also elsewhere.
  * - curl shows the plain-text body as it is, and a browser gets a designed page.
@@ -23,15 +28,16 @@ import { fullName } from "./decide.js";
 export type ClientKind = "browser" | "json" | "go" | "plain";
 
 const PACKAGE_MANAGER_AGENT = /^(npm|pnpm|yarn|bun)\//i;
-/** The go command's own User-Agent. Any other Go program says `Go-http-client/…` and does not print a body this way. */
-const GO_COMMAND_AGENT = /^GoCommand\//;
 const DEFAULT_CONTACT = "the PkgGuard space in Google Chat";
 
-export function clientKind(request: Pick<Request, "headers">): ClientKind {
+/**
+ * A Go module download is read by the go command, which prints one line of the body, whatever its User-Agent says (see above).
+ * A browser is still sent the page, and anyone else reading a Go response raw gets the readable body after that line.
+ */
+export function clientKind(request: Pick<Request, "headers">, pkg?: Pick<ParsedPackage, "ecosystem">): ClientKind {
   if ((request.headers.get("accept") ?? "").toLowerCase().includes("text/html")) return "browser";
-  const agent = request.headers.get("user-agent") ?? "";
-  if (PACKAGE_MANAGER_AGENT.test(agent)) return "json";
-  if (GO_COMMAND_AGENT.test(agent)) return "go";
+  if (pkg?.ecosystem === "go") return "go";
+  if (PACKAGE_MANAGER_AGENT.test(request.headers.get("user-agent") ?? "")) return "json";
   return "plain";
 }
 
@@ -180,7 +186,7 @@ export function blockResponse(
   contact?: string,
 ): Response {
   const f = facts(pkg, decision, reference, contact);
-  const kind = clientKind(request);
+  const kind = clientKind(request, pkg);
   const body = kind === "browser" ? htmlBody(f) : kind === "json" ? jsonBody(f) : kind === "go" ? goBody(f) : plainBody(f);
   const type = kind === "browser" ? "text/html; charset=utf-8" : kind === "json" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8";
   const headers: Record<string, string> = { ...SECURITY_HEADERS, "content-type": type };
