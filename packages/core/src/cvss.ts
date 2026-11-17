@@ -8,7 +8,8 @@
  * (`AV:Network`) and a 3.0 vector inside a 3.1 parser, and it scores an unknown or partial vector as 0 or not at all.
  * A vector that is not exactly well formed is refused, never repaired.
  */
-import { Cvss3P0, Cvss3P1, Cvss4P0, type CvssVector } from "ae-cvss-calculator";
+import * as cvssLibrary from "ae-cvss-calculator";
+import type { CvssVector } from "ae-cvss-calculator";
 import {
   CVSS_SOURCE_AFFECTED,
   CVSS_SOURCE_RECORD,
@@ -25,6 +26,12 @@ import { distillFor, type Advisory } from "./osv/distill.js";
 import type { OsvRecord, OsvSeverity } from "./osv/types.js";
 
 export * from "./osv/cvss-rating.js";
+
+/**
+ * The library is a UMD bundle: bundlers (esbuild for Workers, Vite for the tests) expose its classes as named exports,
+ * but Node's own ESM loader, which runs `npm run bootstrap` through tsx, exposes them only on `default`.
+ */
+const { Cvss3P0, Cvss3P1, Cvss4P0 } = (cvssLibrary as { default?: typeof cvssLibrary }).default ?? cvssLibrary;
 
 type AnyVector = CvssVector<{ vector: string; overall: number; normalized: boolean }>;
 
