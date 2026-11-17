@@ -13,9 +13,10 @@ import { api } from "../api.js";
 import { packageLabel, referenceFilter, relativeTime, splitIds } from "../format.js";
 import { useResource } from "../useResource.js";
 import { ECOSYSTEM_FILTER_ITEMS, ecosystemLabel } from "../ecosystems.js";
-import { VIEW_LABELS, isDetectionView, viewVerdicts, type DetectionView } from "../view.js";
+import { VIEW_LABELS, detectionSeverityBadge, isDetectionView, viewVerdicts, type DetectionView } from "../view.js";
 import { AdvisoryList } from "./AdvisoryLink.js";
 import { DetectionPanel } from "./DetectionPanel.js";
+import { SeverityBadge } from "./SeverityBadge.js";
 import { VerdictBadge } from "./VerdictBadge.js";
 
 const VIEW_TABS = (Object.keys(VIEW_LABELS) as DetectionView[]).map((value) => ({ value, label: VIEW_LABELS[value] }));
@@ -160,6 +161,9 @@ export function DetectionsFeed({ now, active, onAddOverride, onLookup }: Detecti
                       {packageLabel(row.package_name, row.version)}
                     </button>
                     <span className="ml-2 text-xs whitespace-nowrap text-kumo-subtle">{ecosystemLabel(row.ecosystem)}</span>
+                    <span className="ml-2 align-middle">
+                      <SeverityBadge view={detectionSeverityBadge(row)} />
+                    </span>
                   </Table.Cell>
                   <Table.Cell>
                     <AdvisoryList ids={splitIds(row.osv_ids)} />

@@ -12,8 +12,15 @@ export interface OsvRange {
   events: OsvEvent[];
 }
 
+/** An OSV `severity[]` entry, e.g. `{ type: "CVSS_V3", score: "CVSS:3.1/AV:N/..." }`. Untrusted: validated before use. */
+export interface OsvSeverity {
+  type?: string;
+  score?: string;
+}
+
 export interface OsvAffected {
   package?: { ecosystem: string; name: string; purl?: string };
+  severity?: OsvSeverity[];
   ranges?: OsvRange[];
   versions?: string[];
   database_specific?: { cwes?: Array<{ cweId?: string }> } & Record<string, unknown>;
@@ -25,6 +32,7 @@ export interface OsvRecord {
   summary?: string;
   modified: string;
   withdrawn?: string;
+  severity?: OsvSeverity[];
   affected?: OsvAffected[];
   database_specific?: { cwe_ids?: string[]; severity?: string } & Record<string, unknown>;
 }

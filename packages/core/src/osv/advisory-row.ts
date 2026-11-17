@@ -1,4 +1,5 @@
 import { isEcosystem, type Ecosystem } from "../ecosystem-ids.js";
+import { parseCvssRating } from "./cvss-rating.js";
 import type { Advisory } from "./distill.js";
 import type { AffectedSpec } from "./match.js";
 
@@ -15,6 +16,7 @@ export const ADVISORY_COLUMNS = [
   "ranges_json",
   "withdrawn",
   "modified",
+  "cvss_json",
 ] as const;
 
 export type RowValue = string | number | null;
@@ -41,6 +43,7 @@ export function advisoryRow(a: Advisory): RowValue[] {
     clean(JSON.stringify(a.spec)),
     a.withdrawn ? 1 : 0,
     a.modified,
+    a.cvss ? clean(JSON.stringify(a.cvss)) : null,
   ];
 }
 
@@ -49,7 +52,7 @@ const isSpec = (value: unknown): value is AffectedSpec =>
 
 /** The inverse, for rebuilding KV entries from D1. Returns null for a row that cannot be trusted, so one bad row never aborts a rebuild. */
 export function advisoryFromRow(row: Record<string, unknown>): Advisory | null {
-  const { ecosystem, osv_id, package_name, namespace, kind, cwe_ids, severity, summary, ranges_json, withdrawn, modified } = row;
+  const { ecosystem, osv_id, package_name, namespace, kind, cwe_ids, severity, summary, ranges_json, withdrawn, modified, cvss_json } = row;
   if (!isEcosystem(ecosystem)) return null;
   if (typeof osv_id !== "string" || typeof package_name !== "string" || typeof modified !== "string") return null;
   if (kind !== "malware" && kind !== "vulnerability") return null;
@@ -61,6 +64,7 @@ export function advisoryFromRow(row: Record<string, unknown>): Advisory | null {
     return null;
   }
   if (!isSpec(spec)) return null;
+  const cvss = parseCvssRating(cvss_json);
   return {
     ecosystem,
     osvId: osv_id,
@@ -73,5 +77,6 @@ export function advisoryFromRow(row: Record<string, unknown>): Advisory | null {
     spec,
     withdrawn: withdrawn === 1 || withdrawn === true,
     modified,
+    ...(cvss ? { cvss } : {}),
   };
 }

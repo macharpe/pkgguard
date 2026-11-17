@@ -6,8 +6,10 @@ import { useRef, type ReactNode } from "react";
 import type { DetectionRow } from "../../../src/api-types.js";
 import { ecosystemLabel } from "../ecosystems.js";
 import { packageLabel, relativeTime, splitIds } from "../format.js";
-import { detectionExplanation, prefillFromDetection, sourceLabel } from "../view.js";
+import { detectionExplanation, advisoryBadge, detectionSeverityBadge, prefillFromDetection, sourceLabel } from "../view.js";
+import { AdvisoryDetail } from "./AdvisoryDetail.js";
 import { AdvisoryLink } from "./AdvisoryLink.js";
+import { SeverityBadge } from "./SeverityBadge.js";
 import { VerdictBadge } from "./VerdictBadge.js";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -61,6 +63,7 @@ export function DetectionPanel({ row, now, onClose, onAddOverride, onLookup }: D
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <VerdictBadge verdict={shown.verdict} />
                   <Badge variant="outline">{ecosystemLabel(shown.ecosystem)}</Badge>
+                  <SeverityBadge view={detectionSeverityBadge(shown)} />
                 </div>
               </div>
               <Dialog.Close render={<Button variant="secondary" shape="square" size="sm" aria-label="Close" icon={<X size={16} />} />} />
@@ -75,11 +78,15 @@ export function DetectionPanel({ row, now, onClose, onAddOverride, onLookup }: D
                   dash
                 ) : (
                   <ul className="flex flex-col gap-1">
-                    {ids.map((id) => (
-                      <li key={id}>
-                        <AdvisoryLink id={id} />
-                      </li>
-                    ))}
+                    {ids.map((id) => {
+                      const advisory = shown.advisories?.find((a) => a.osv_id === id);
+                      return (
+                        <li key={id} className="flex flex-wrap items-center gap-2">
+                          {advisory ? <AdvisoryDetail advisory={advisory} /> : <AdvisoryLink id={id} />}
+                          {advisory ? <SeverityBadge view={advisoryBadge(advisory)} /> : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

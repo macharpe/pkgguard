@@ -3,6 +3,7 @@ import { isReference } from "@pkgguard/core";
 import type { DetectionRow, DetectionsResponse } from "../api-types.js";
 import type { Env } from "../env.js";
 import { HttpError, enumListParam, enumParam, intParam, json } from "../http.js";
+import { enrichDetections } from "./advisory-metadata.js";
 
 const VERDICTS = ["blocked", "flagged", "allowed", "error"] as const;
 
@@ -43,6 +44,6 @@ export async function detections(env: Env, url: URL): Promise<Response> {
 
   const more = results.length > limit;
   const items = more ? results.slice(0, limit) : results;
-  const body: DetectionsResponse = { items, nextBefore: more ? (items[items.length - 1]?.id ?? null) : null };
+  const body: DetectionsResponse = { items: await enrichDetections(env, items), nextBefore: more ? (items[items.length - 1]?.id ?? null) : null };
   return json(body);
 }

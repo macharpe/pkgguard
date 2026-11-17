@@ -85,11 +85,11 @@ export async function addDetection(row: Partial<Record<string, string | null>> &
     .run();
 }
 
-export async function addAdvisory(a: { ecosystem: string; id: string; name: string; kind: "malware" | "vulnerability"; severity?: string | null; summary?: string; withdrawn?: number }): Promise<void> {
+export async function addAdvisory(a: { ecosystem: string; id: string; name: string; kind: "malware" | "vulnerability"; severity?: string | null; cvss?: unknown; summary?: string; withdrawn?: number }): Promise<void> {
   await env.DB.prepare(
-    "INSERT INTO advisories (ecosystem, osv_id, package_name, namespace, kind, severity, summary, ranges_json, withdrawn, modified) VALUES (?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO advisories (ecosystem, osv_id, package_name, namespace, kind, severity, summary, ranges_json, withdrawn, modified, cvss_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
   )
-    .bind(a.ecosystem, a.id, a.name, null, a.kind, a.severity ?? null, a.summary ?? `summary of ${a.id}`, '{"r":[],"v":[]}', a.withdrawn ?? 0, iso())
+    .bind(a.ecosystem, a.id, a.name, null, a.kind, a.severity ?? null, a.summary ?? `summary of ${a.id}`, '{"r":[],"v":[]}', a.withdrawn ?? 0, iso(), a.cvss === undefined ? null : JSON.stringify(a.cvss))
     .run();
 }
 

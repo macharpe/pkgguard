@@ -1,4 +1,5 @@
-import { ADVISORY_COLUMNS, advisoryFromRow, advisoryRow, buildKvEntry, distill, enabledEcosystemSqlList, kvKey, type Advisory, type Ecosystem, type OsvRecord } from "@pkgguard/core";
+import { ADVISORY_COLUMNS, advisoryFromRow, advisoryRow, buildKvEntry, enabledEcosystemSqlList, kvKey, type Advisory, type Ecosystem, type OsvRecord } from "@pkgguard/core";
+import { distillRated } from "@pkgguard/core/cvss";
 
 /** D1 allows 100 bound parameters per query; stay well inside it. */
 const IN_CHUNK = 90;
@@ -46,7 +47,7 @@ export async function applyRecords(deps: ApplyDeps, records: readonly OsvRecord[
   const advisories = new Map<string, Advisory>();
   for (const record of records) {
     if (typeof record.withdrawn === "string") result.withdrawn++;
-    for (const a of distill(record)) advisories.set(`${a.ecosystem}|${a.osvId}|${a.packageName}`, a);
+    for (const a of distillRated(record)) advisories.set(`${a.ecosystem}|${a.osvId}|${a.packageName}`, a);
   }
 
   // What the batch replaces: which of these ids already had rows, and which packages they covered.

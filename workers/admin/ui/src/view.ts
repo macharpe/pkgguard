@@ -4,8 +4,8 @@
  * index pill say. The components only draw what these return.
  */
 import { ENABLED_ECOSYSTEMS, ecosystemLabel, type Ecosystem } from "@pkgguard/core/ecosystems";
-import type { DetectionRow, EnforcementInfo, OverrideMode, RefreshRunInfo, StatusResponse } from "../../src/api-types.js";
-import { formatCount, isActive, relativeTime } from "./format.js";
+import type { CvssRating, DetectionAdvisory, DetectionRow, EnforcementInfo, OverrideMode, RefreshRunInfo, StatusResponse } from "../../src/api-types.js";
+import { formatCount, isActive, plural, relativeTime, type BadgeColour } from "./format.js";
 
 export const TABS = ["detections", "packages", "index"] as const;
 export type TabId = (typeof TABS)[number];
@@ -184,4 +184,199 @@ export function indexView(status: Pick<StatusResponse, "ecosystems" | "lastRefre
     progress: null,
     running: false,
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Severity badges
+// ---------------------------------------------------------------------------------------------------------------------
+
+export type SeverityCategory = "none" | "low" | "moderate" | "high" | "critical";
+
+const CATEGORY_RANK: Readonly<Record<SeverityCategory, number>> = { none: 0, low: 1, moderate: 2, high: 3, critical: 4 };
+
+export const CATEGORY_LABELS: Readonly<Record<SeverityCategory, string>> = { none: "None", low: "Low", moderate: "Moderate", high: "High", critical: "Critical" };
+
+const CATEGORY_COLOURS: Readonly<Record<SeverityCategory, BadgeColour>> = { none: "secondary", low: "info", moderate: "warning", high: "error", critical: "error" };
+
+/** The CVSS qualitative scale: 0 is None, below 4 Low, below 7 Moderate (CVSS calls it Medium), below 9 High, then Critical. */
+export function cvssCategory(score: number): SeverityCategory {
+  if (score >= 9) return "critical";
+  if (score >= 7) return "high";
+  if (score >= 4) return "moderate";
+  return score > 0 ? "low" : "none";
+}
+
+/** A usable base score is a finite number from 0 to 10. Anything else is treated as no score, never as 0. */
+export const isUsableScore = (score: unknown): score is number => typeof score === "number" && Number.isFinite(score) && score >= 0 && score <= 10;
+
+/** The word an advisory carries when it has no score (GitHub's `LOW`/`MODERATE`/`HIGH`/`CRITICAL`; `MEDIUM` is the same band). Anything else, such as a vector string, is not a label. */
+export function categoryFromLabel(severity: string | null | undefined): SeverityCategory | null {
+  switch (severity?.trim().toUpperCase()) {
+    case "CRITICAL":
+      return "critical";
+    case "HIGH":
+      return "high";
+    case "MODERATE":
+    case "MEDIUM":
+      return "moderate";
+    case "LOW":
+      return "low";
+    case "NONE":
+      return "none";
+    default:
+      return null;
+  }
+}
+
+/** What both a detection's advisory and a lookup row carry. */
+export type AdvisoryInput = Pick<DetectionAdvisory, "osv_id" | "kind" | "severity"> & { cvss?: CvssRating | null | undefined; status?: DetectionAdvisory["status"] | undefined };
+
+export interface AdvisoryAssessment {
+  osvId: string;
+  kind: "malware" | "vulnerability" | null;
+  /** Null when the advisory has neither a usable score nor a recognised label. */
+  category: SeverityCategory | null;
+  /** Where the category came from: the calculated score wins over the advisory's own label. */
+  basis: "cvss" | "label" | null;
+  /** Null for malware, whatever the source supplied: malware is not scored. */
+  rating: CvssRating | null;
+}
+
+export function assessAdvisory(advisory: AdvisoryInput): AdvisoryAssessment {
+  const base = { osvId: advisory.osv_id, kind: advisory.kind };
+  if (advisory.status === "withdrawn" || advisory.status === "not-indexed" || advisory.kind === "malware") return { ...base, category: null, basis: null, rating: null };
+  const rating = advisory.cvss && isUsableScore(advisory.cvss.score) ? advisory.cvss : null;
+  if (rating) return { ...base, category: cvssCategory(rating.score), basis: "cvss", rating };
+  const fromLabel = categoryFromLabel(advisory.severity);
+  return { ...base, category: fromLabel, basis: fromLabel ? "label" : null, rating: null };
+}
+
+export interface SeveritySummary {
+  /** The most severe rated advisory, a higher score first among equals. Null when none is rated. */
+  highest: AdvisoryAssessment | null;
+  rated: number;
+  /** Vulnerabilities with no usable score and no recognised label in the current index. */
+  unrated: number;
+  total: number;
+}
+
+const score = (a: AdvisoryAssessment): number => a.rating?.score ?? -1;
+
+/**
+ * The highest severity over the vulnerabilities in a list. Malware is not a vulnerability and never counts. An advisory
+ * with a label but no score still counts at its label, so it cannot be hidden behind a lower scored one.
+ */
+export function summariseSeverity(advisories: readonly AdvisoryInput[]): SeveritySummary {
+  const vulns = advisories.filter((a) => a.kind !== "malware").map(assessAdvisory);
+  let highest: AdvisoryAssessment | null = null;
+  for (const a of vulns) {
+    if (a.category === null) continue;
+    if (highest === null || CATEGORY_RANK[a.category] > CATEGORY_RANK[highest.category as SeverityCategory] || (a.category === highest.category && score(a) > score(highest))) highest = a;
+  }
+  const rated = vulns.filter((a) => a.category !== null).length;
+  return { highest, rated, unrated: vulns.length - rated, total: vulns.length };
+}
+
+export const SEVERITY_DISCLAIMER =
+  "Severity is read from the index as it is now, not as it was when this download happened. A score is a CVSS base score for the vulnerability that OSV supplied; it is not a risk score for this package.";
+
+/** "CVSS v3.1" from "3.1", "CVSS_V3" or "v3.1". */
+export function cvssVersionLabel(version: string): string {
+  const rest = version.trim().replace(/^cvss[\s_:-]*/i, "").replace(/^v/i, "");
+  return rest === "" ? "CVSS" : `CVSS v${rest}`;
+}
+
+export const formatScore = (n: number): string => n.toFixed(1);
+
+export interface SeverityBadgeView {
+  kind: "malware" | "severity" | "unrated";
+  label: string;
+  colour: BadgeColour;
+  /** The hover text: what the badge is based on, and how many advisories it does not cover. */
+  title: string;
+}
+
+const MALWARE_BADGE: SeverityBadgeView = { kind: "malware", label: "Malware", colour: "error", title: "OSV classifies this release as malware. Malware is not given a severity score." };
+
+export const malwareBadge = (): SeverityBadgeView => MALWARE_BADGE;
+
+const basisText = (a: AdvisoryAssessment): string => (a.rating ? `${cvssVersionLabel(a.rating.version)} base score ${formatScore(a.rating.score)}` : "the advisory's own severity label, which has no score");
+
+/** The badge for a summary of vulnerabilities. Null when there is nothing to say. */
+export function severityBadge(summary: SeveritySummary): SeverityBadgeView | null {
+  if (summary.total === 0) return null;
+  const { highest, rated, unrated, total } = summary;
+  if (highest === null || highest.category === null) {
+    return {
+      kind: "unrated",
+      label: "Unrated",
+      colour: "secondary",
+      title: `${plural(total, "advisory", "advisories")} ${total === 1 ? "has" : "have"} no score or severity label in the current index.`,
+    };
+  }
+  const name = CATEGORY_LABELS[highest.category];
+  const missing = unrated > 0 ? ` ${unrated} of ${total} ${total === 1 ? "advisory has" : "advisories have"} no score or severity label, so ${unrated === 1 ? "it is" : "they are"} not covered.` : "";
+  const scope = total > 1 ? `Highest of ${rated} rated ${rated === 1 ? "advisory" : "advisories"}` : "Rated";
+  return {
+    kind: "severity",
+    label: `${name}${highest.rating ? ` · ${formatScore(highest.rating.score)}` : ""}${unrated > 0 ? ` · ${unrated} unrated` : ""}`,
+    colour: CATEGORY_COLOURS[highest.category],
+    title: `${scope}: ${name}, from ${basisText(highest)} (${highest.osvId}), current index.${missing}`,
+  };
+}
+
+/**
+ * The badge in a detection's Package cell. A malware decision is Malware whatever its verdict (blocked or flagged);
+ * a CVE decision shows the highest severity of the advisories it recorded. An override, a clean pass or a failed
+ * lookup says nothing about advisories, so it gets no badge: severity is never invented for them.
+ */
+export function detectionSeverityBadge(row: Pick<DetectionRow, "reason" | "advisories">): SeverityBadgeView | null {
+  if (row.reason === "osv-malware") return MALWARE_BADGE;
+  if (row.reason !== "osv-cve") return null;
+  const summary = summariseSeverity(row.advisories ?? []);
+  // A row recorded before advisories were returned, or whose advisories have left the index: still a CVE decision, but nothing to rate.
+  if (summary.total === 0) return { kind: "unrated", label: "Unrated", colour: "secondary", title: "No severity metadata is available for the advisories recorded with this download in the current index." };
+  return severityBadge(summary);
+}
+
+/** The badge for one advisory in a list: Malware for malware, else its own severity. */
+export function advisoryBadge(advisory: AdvisoryInput): SeverityBadgeView | null {
+  return advisory.kind === "malware" ? MALWARE_BADGE : severityBadge(summariseSeverity([advisory]));
+}
+
+export interface AdvisoryDetailView {
+  osvId: string;
+  /** Null when there is nothing beyond the badge, so no expander is drawn. */
+  lines: string[] | null;
+  vector: string | null;
+  source: string | null;
+}
+
+/** The expandable text for one advisory: the score and its version, the vector and where it came from. */
+export function advisoryDetail(advisory: AdvisoryInput): AdvisoryDetailView {
+  const a = assessAdvisory(advisory);
+  const base = { osvId: a.osvId, vector: null, source: null };
+  // A withdrawn or unindexed advisory has nothing current to score: say that, whatever the recorded id once was.
+  if (advisory.status === "withdrawn") return { ...base, lines: ["Withdrawn in the current index. No current severity is available."] };
+  if (advisory.status === "not-indexed") return { ...base, lines: ["Not in the current index. No severity is available."] };
+  if (a.kind === "malware") return { ...base, lines: null };
+  if (a.rating && a.category) {
+    const { rating } = a;
+    return {
+      osvId: a.osvId,
+      lines: [`${cvssVersionLabel(rating.version)} base score ${formatScore(rating.score)} (${CATEGORY_LABELS[a.category]})`],
+      vector: rating.vector,
+      source: rating.source,
+    };
+  }
+  if (a.category) return { ...base, lines: [`Severity label ${CATEGORY_LABELS[a.category]}. No score is available.`] };
+  return { ...base, lines: ["No score or severity label in the current index."] };
+}
+
+/** Shown above a lookup's advisory lists: they are everything known for the package, and a version only narrows the verdict above them. */
+export function lookupAdvisoryNote(version: string): string {
+  const v = version.trim();
+  return v === ""
+    ? "These are all the advisories known for this package, across every version."
+    : `These are all the advisories known for this package, not only those that affect ${v}. The result above is what the filter decides for that version.`;
 }

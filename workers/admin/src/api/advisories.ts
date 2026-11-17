@@ -1,12 +1,13 @@
 import { ENABLED_ECOSYSTEMS, evaluate, kvKey, normalizeName, parseKvValue, isNegative, summarizeVerdict, type Ecosystem } from "@pkgguard/core";
-import type { AdvisoriesResponse, AdvisoryRow, PackageResult } from "../api-types.js";
+import type { AdvisoriesResponse, PackageResult } from "../api-types.js";
+import { readAdvisory, type StoredAdvisory } from "./advisory-metadata.js";
 import type { Env } from "../env.js";
 import { HttpError, enumParam, json } from "../http.js";
 
 const MAX_PACKAGES = 25;
 const MAX_ROWS = 200;
 
-type Row = AdvisoryRow;
+type Row = StoredAdvisory;
 
 /**
  * Package search by name prefix. With `version`, an exact package also gets the verdict the filter's OSV
@@ -24,12 +25,13 @@ export async function advisories(env: Env, url: URL): Promise<Response> {
   for (const ecosystem of only ? [only] : ENABLED_ECOSYSTEMS) {
     const prefix = normalizeName(ecosystem, q);
     const { results } = await env.DB.prepare(
-      "SELECT ecosystem, package_name, osv_id, kind, severity, summary FROM advisories " +
+      "SELECT ecosystem, package_name, osv_id, kind, severity, summary, cvss_json FROM advisories " +
         "WHERE ecosystem = ? AND withdrawn = 0 AND package_name >= ? AND package_name < ? ORDER BY package_name, osv_id LIMIT ?",
     )
       .bind(ecosystem, prefix, `${prefix}\uffff`, MAX_ROWS)
       .all<Row>();
-    for (const row of results) {
+    for (const stored of results) {
+      const row = readAdvisory(stored);
       const key = `${row.ecosystem}:${row.package_name}`;
       if (!packages.has(key) && packages.size >= MAX_PACKAGES) continue;
       const entry: PackageResult = packages.get(key) ?? { ecosystem: row.ecosystem, name: row.package_name, malware: [], vulnerabilities: [] };

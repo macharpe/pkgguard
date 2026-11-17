@@ -1,5 +1,6 @@
 export * from "./osv/types.js";
 export * from "./osv/classify.js";
+export * from "./osv/cvss-rating.js";
 export * from "./ecosystem-ids.js";
 export * from "./ecosystems/index.js";
 export * from "./normalize.js";

@@ -22,7 +22,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { distillFor, buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
+import { buildKvEntry, kvKey, type Advisory, type OsvRecord } from "../packages/core/src/index.js";
+import { distillRatedFor } from "../packages/core/src/cvss.js";
 import { assertGeneratedFor, defaultOutName, parseSyncStateIds, selectEcosystems } from "./lib/bootstrap-select.js";
 import { Census, formatCensus } from "./lib/census.js";
 import { loadDeployEnv } from "./lib/deploy-env.js";
@@ -101,7 +102,7 @@ async function generate(): Promise<void> {
         }
         seen++;
         if (!newest[ours] || record.modified > newest[ours]) newest[ours] = record.modified;
-        const advisories = distillFor(record, ECOSYSTEMS.map((e) => e.ours));
+        const advisories = distillRatedFor(record, ECOSYSTEMS.map((e) => e.ours));
         if (advisories.length === 0) skipped++;
         for (const advisory of advisories) {
           rows.set(`${advisory.ecosystem}|${advisory.osvId}|${advisory.packageName}`, advisory);

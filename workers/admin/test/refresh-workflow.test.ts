@@ -57,7 +57,7 @@ const seedState = (npm = "2026-11-05T00:00:00Z") =>
     env.DB.prepare("DELETE FROM sync_state"),
     env.DB.prepare("INSERT INTO sync_state (ecosystem, last_modified, record_count, last_synced_at) VALUES ('npm', ?, 1, '2026-11-01T00:00:00Z'), ('pypi', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('cargo', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('rubygems', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('nuget', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z'), ('go', '2026-11-05T00:00:00Z', 1, '2026-11-01T00:00:00Z')").bind(npm),
   ]);
-const startRow = () => env.DB.prepare("INSERT INTO refresh_runs (id, kind, trigger, status, started_at) VALUES (?, 'manual', 'test', 'queued', '2026-11-07T00:00:00Z')").bind(RUN).run();
+const startRow = () => env.DB.prepare("INSERT INTO refresh_runs (id, kind, trigger, status, started_at) VALUES (?, 'manual', 'test', 'queued', ?)").bind(RUN, new Date().toISOString()).run();
 const drive = async (e: Parameters<typeof executeRefresh>[0] = env) => {
   const { step, calls } = fakeStep();
   const outcome = await executeRefresh(e, RUN, step).then((v) => ({ ok: true as const, v }), (err: unknown) => ({ ok: false as const, e: err }));

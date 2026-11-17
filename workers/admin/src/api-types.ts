@@ -5,6 +5,28 @@ import type { Ecosystem } from "@pkgguard/core/ecosystems";
 export type { Ecosystem };
 export type DetectionVerdict = "blocked" | "flagged" | "allowed" | "error";
 
+/** A base score calculated from one OSV-supplied CVSS vector, not a package risk score. */
+export interface CvssRating {
+  score: number;
+  version: string;
+  vector: string;
+  source: string;
+}
+
+export interface DetectionAdvisory {
+  osv_id: string;
+  /**
+   * What the current index says about this ID: `current`, `withdrawn` since the download, or `not-indexed`
+   * (for example a live OSV lookup hit that was never loaded). A null `cvss` on a current advisory means no usable
+   * vector is stored, which also covers rows loaded before scores were kept.
+   */
+  status?: "current" | "withdrawn" | "not-indexed";
+  /** Current classification, which can differ from the detection's own `reason` if OSV reclassified it later. */
+  kind: "malware" | "vulnerability" | null;
+  severity: string | null;
+  cvss?: CvssRating | null;
+}
+
 export interface DetectionRow {
   id: number;
   ts: string;
@@ -20,6 +42,8 @@ export interface DetectionRow {
   source: string | null;
   /** Quoted by the developer who was blocked; set only for malware decisions. */
   reference: string | null;
+  /** Current index metadata for exactly the IDs recorded by the filter; not a historical severity snapshot. */
+  advisories?: DetectionAdvisory[];
 }
 
 export interface DetectionsResponse {
@@ -83,6 +107,7 @@ export interface AdvisoryRow {
   osv_id: string;
   kind: "malware" | "vulnerability";
   severity: string | null;
+  cvss?: CvssRating | null;
   summary: string | null;
 }
 

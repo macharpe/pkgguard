@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "ae-cvss-calculator": "^1.0.13",
     "semver": "^7.8.6"
   },
   "devDependencies": {
@@ -13,6 +14,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./ecosystems": "./src/ecosystem-ids.ts"
+    "./ecosystems": "./src/ecosystem-ids.ts",
+    "./cvss": "./src/cvss.ts"
   }
 }

@@ -64,7 +64,7 @@ Say "blocks known-malicious packages", never "protects against supply chain atta
 | `npm run deploy:filter` | Generate the config, then `wrangler deploy` with `CLOUDFLARE_API_TOKEN` unset |
 | `wrangler d1 execute pkgguard-db --remote -c workers/filter/wrangler.local.jsonc --file migrations/<n>.sql` | Apply a migration. They are not applied automatically. Record `wrangler d1 time-travel info pkgguard-db` first. |
 | `npm run build:admin` | Build the dashboard into `workers/admin/dist` (gitignored) |
-| `npm run deploy:admin` | Build the dashboard, generate the admin config, then `wrangler deploy`. Always builds first. |
+| `npm run deploy:admin` | Build the dashboard, generate the admin config, then `wrangler deploy`. Always builds first. Apply `0004_advisory_cvss.sql` before deploying code that reads/writes CVSS metadata; record D1 time-travel info first. Existing rows keep category-only badges until reprocessed by refresh or a per-ecosystem bootstrap reload. |
 | `npm run gateway:rule -- status\|create\|enable\|disable\|sync\|delete` | Manage the Gateway Forward rule. `create` always makes it disabled. `sync` writes the desired rule (traffic follows the enabled ecosystems), printing each field it changes, and never changes whether the rule is enabled. Needs `TF_VAR_cloudflare_api_token` in the environment. |
 | `terraform -chdir=terraform plan -out=tfplan` | Access apps, policies and service token. Never apply without a reviewed plan. |
 

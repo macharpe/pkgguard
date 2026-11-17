@@ -50,6 +50,7 @@ describe("listMigrations", () => {
     expect(real[0]).toBe("0001_init.sql");
     expect(real).toContain("0002_refresh_items.sql");
     expect(real).toContain("0003_detection_reference.sql");
-    expect(real.length).toBeGreaterThanOrEqual(3);
+    expect(real).toContain("0004_advisory_cvss.sql");
+    expect(real.length).toBeGreaterThanOrEqual(4);
   });
 });

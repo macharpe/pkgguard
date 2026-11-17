@@ -12,8 +12,10 @@ import type { AdvisoriesResponse, AdvisoryRow, OverrideMode, PackageResult } fro
 import { api } from "../api.js";
 import { ECOSYSTEM_FILTER_ITEMS, ecosystemLabel } from "../ecosystems.js";
 import { plural, simulationLabel } from "../format.js";
-import { AdvisoryLink } from "./AdvisoryLink.js";
+import { AdvisoryDetail } from "./AdvisoryDetail.js";
+import { SeverityBadge } from "./SeverityBadge.js";
 import { VerdictBadge } from "./VerdictBadge.js";
+import { advisoryBadge, lookupAdvisoryNote, severityBadge, summariseSeverity } from "../view.js";
 
 /** A search someone else asked for, such as the detection panel's "Look up package". A new `nonce` runs it again. */
 export interface LookupRequest {
@@ -33,8 +35,8 @@ function Advisories({ title, rows }: { title: string; rows: AdvisoryRow[] }) {
       <ul className="flex flex-col gap-1">
         {rows.slice(0, 8).map((row) => (
           <li key={row.osv_id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-            <AdvisoryLink id={row.osv_id} />
-            {row.severity ? <Badge variant="secondary">{row.severity}</Badge> : null}
+            <AdvisoryDetail advisory={row} />
+            <SeverityBadge view={advisoryBadge(row)} />
             <span className="text-kumo-subtle">{row.summary}</span>
           </li>
         ))}
@@ -44,7 +46,7 @@ function Advisories({ title, rows }: { title: string; rows: AdvisoryRow[] }) {
   );
 }
 
-function Result({ pkg, onOverride }: { pkg: PackageResult; onOverride: (mode: OverrideMode, pkg: PackageResult) => void }) {
+function Result({ pkg, version, onOverride }: { pkg: PackageResult; version: string; onOverride: (mode: OverrideMode, pkg: PackageResult) => void }) {
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-kumo-line bg-kumo-base p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -52,6 +54,7 @@ function Result({ pkg, onOverride }: { pkg: PackageResult; onOverride: (mode: Ov
         <Badge variant="outline">{ecosystemLabel(pkg.ecosystem)}</Badge>
         {pkg.malware.length > 0 ? <Badge variant="error">{plural(pkg.malware.length, "malware advisory", "malware advisories")}</Badge> : null}
         {pkg.vulnerabilities.length > 0 ? <Badge variant="warning">{plural(pkg.vulnerabilities.length, "vulnerability", "vulnerabilities")}</Badge> : null}
+        <SeverityBadge view={severityBadge(summariseSeverity(pkg.vulnerabilities))} />
       </div>
       {pkg.osv ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-kumo-tint p-3 text-sm">
@@ -62,6 +65,7 @@ function Result({ pkg, onOverride }: { pkg: PackageResult; onOverride: (mode: Ov
           {pkg.osv.osvIds.length > 0 ? <span className="font-mono text-xs text-kumo-subtle">{pkg.osv.osvIds.slice(0, 3).join(", ")}</span> : null}
         </div>
       ) : null}
+      {pkg.malware.length + pkg.vulnerabilities.length > 0 ? <Text variant="secondary" size="xs">{lookupAdvisoryNote(version)}</Text> : null}
       <Advisories title="Malware" rows={pkg.malware} />
       <Advisories title="Vulnerabilities" rows={pkg.vulnerabilities} />
       <div className="flex flex-wrap justify-end gap-2">
@@ -152,7 +156,7 @@ export function PackageLookup({ request, onOverride }: { request: LookupRequest 
           <>
             <ul className="flex flex-col gap-3">
               {state.data.items.map((pkg) => (
-                <Result key={`${pkg.ecosystem}:${pkg.name}`} pkg={pkg} onOverride={(mode, p) => onOverride(mode, p, state.version ?? "")} />
+                <Result key={`${pkg.ecosystem}:${pkg.name}`} pkg={pkg} version={state.version ?? ""} onOverride={(mode, p) => onOverride(mode, p, state.version ?? "")} />
               ))}
             </ul>
             {state.data.truncated ? <Text variant="secondary" size="sm">Showing the first matches. Narrow the search to see others.</Text> : null}

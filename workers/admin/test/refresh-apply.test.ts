@@ -36,6 +36,15 @@ describe("applyRecords: a new record", () => {
     const expected = buildKvEntry(distill(eventStream as unknown as OsvRecord).filter((r) => r.packageName === "event-stream"), NOW);
     expect(await kvGet(kvKey("npm", "event-stream") as string)).toEqual(expected);
   });
+  it("persists CVSS display metadata without changing the policy outcome", async () => {
+    const vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H";
+    await apply(rec({ severity: [{ type: "CVSS_V3", score: vector }], affected: [pkg("npm", "critical-but-not-malware")] }));
+    const stored = await env.DB.prepare("SELECT cvss_json FROM advisories WHERE package_name = ?").bind("critical-but-not-malware").first<{ cvss_json: string }>();
+    expect(JSON.parse(stored?.cvss_json ?? "null")).toMatchObject({ score: 9.8, version: "3.1", vector });
+    const entry = await kvGet("npm:critical-but-not-malware");
+    expect(entry?.m).toEqual([]);
+    expect(entry?.c.map((a) => a.id)).toEqual(["GHSA-test-0001"]);
+  });
   it("is idempotent: applying again changes nothing and counts it as an update", async () => {
     await apply(eventStream, lodash);
     const d1 = await rows();

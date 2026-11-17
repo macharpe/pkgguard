@@ -3,6 +3,7 @@ import { ENABLED_ECOSYSTEMS } from "../ecosystem-ids.js";
 import { ECOSYSTEMS, ecosystemFromOsvName } from "../ecosystems/index.js";
 import { normalizeName } from "../normalize.js";
 import { classify, collectCweIds } from "./classify.js";
+import type { CvssRating } from "./cvss-rating.js";
 import type { AffectedSpec } from "./match.js";
 import type { AdvisoryKind, OsvRecord } from "./types.js";
 
@@ -15,6 +16,8 @@ export interface Advisory {
   namespace: string | null;
   kind: AdvisoryKind;
   severity: string | null;
+  /** Scored CVSS rating for this package's advisory; set by `distillRated` (`@pkgguard/core/cvss`), absent otherwise. Never on malware. */
+  cvss?: CvssRating | null;
   summary: string | null;
   cweIds: string[];
   spec: AffectedSpec;
