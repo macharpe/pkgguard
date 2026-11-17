@@ -3,6 +3,22 @@
 All notable changes to this project are documented here.
 Generated from [Conventional Commits](https://www.conventionalcommits.org) with [git-cliff](https://git-cliff.org).
 
+## [0.4.0] - 2026-11-17
+
+### Upgrade notes
+- Apply `migrations/0004_advisory_cvss.sql` before deploying the updated admin Worker; record a D1 time-travel restore point first. Existing advisory rows keep category-only badges until reprocessed by refresh or a per-ecosystem bootstrap reload.
+
+### Features
+- **admin:** Show severity and CVSS score badges on detections (`c42d283`)
+
+### Bug fixes
+- **core:** Load the CVSS library under Node as well as bundlers (`b4aff6f`)
+- **admin:** Give detection findings their own column (`60e232e`)
+
+### Documentation
+- Replace the PyPI demo package that PyPI removed (`68d5570`)
+- Refresh dashboard screenshot with example identities (`c3ef0fe`)
+
 ## [0.3.1] - 2026-11-09
 
 ### Documentation
