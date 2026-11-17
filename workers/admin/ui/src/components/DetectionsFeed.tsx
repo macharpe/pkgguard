@@ -129,11 +129,12 @@ export function DetectionsFeed({ now, active, onAddOverride, onLookup }: Detecti
         )
       ) : (
         <div className="overflow-x-auto rounded-xl border border-kumo-line">
-          <Table className="min-w-[44rem]">
+          <Table className="min-w-[50rem]">
             <Table.Header>
               <Table.Row>
                 <Table.Head>When</Table.Head>
                 <Table.Head>Verdict</Table.Head>
+                <Table.Head>Finding</Table.Head>
                 <Table.Head>Package</Table.Head>
                 <Table.Head>Advisories</Table.Head>
                 <Table.Head>Reference</Table.Head>
@@ -151,6 +152,9 @@ export function DetectionsFeed({ now, active, onAddOverride, onLookup }: Detecti
                   <Table.Cell>
                     <VerdictBadge verdict={row.verdict} />
                   </Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">
+                    {detectionSeverityBadge(row) ? <SeverityBadge view={detectionSeverityBadge(row)} /> : <span className="text-kumo-inactive">—</span>}
+                  </Table.Cell>
                   <Table.Cell className="max-w-[26rem]">
                     <button
                       type="button"
@@ -161,9 +165,6 @@ export function DetectionsFeed({ now, active, onAddOverride, onLookup }: Detecti
                       {packageLabel(row.package_name, row.version)}
                     </button>
                     <span className="ml-2 text-xs whitespace-nowrap text-kumo-subtle">{ecosystemLabel(row.ecosystem)}</span>
-                    <span className="ml-2 align-middle">
-                      <SeverityBadge view={detectionSeverityBadge(row)} />
-                    </span>
                   </Table.Cell>
                   <Table.Cell>
                     <AdvisoryList ids={splitIds(row.osv_ids)} />
