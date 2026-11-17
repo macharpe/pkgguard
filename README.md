@@ -4,7 +4,7 @@ Block malicious npm, PyPI, Cargo, RubyGems, NuGet and Go packages at the network
 
 PkgGuard is two Cloudflare Workers behind a single Cloudflare Gateway rule. When a developer on an enrolled device downloads a package, Gateway hands the request to a Worker. The Worker checks the package against an index built from OSV and either lets the download through or stops it. Malware is blocked. Ordinary vulnerabilities are logged, because blocking every CVE would break most real builds.
 
-![The PkgGuard dashboard's Detections tab: an enforcement badge, the last 24 hours (88 blocked, 21 flagged, 44 allowed), the index status, and a table of blocked and flagged downloads with their advisories and reference codes](assets/pkgguard-dashboard-detections.png)
+![The PkgGuard dashboard's Detections tab: an enforcement badge, the last 24 hours (3 blocked, 1 flagged, 6 allowed), the index status, and a table of blocked and flagged downloads with their advisories and reference codes](assets/pkgguard-dashboard-detections.png)
 
 *The dashboard's Detections tab: what the filter saw on package downloads, with the enforcement state and index status above it. The addresses in the screenshot are examples.*
 
