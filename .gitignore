@@ -27,6 +27,9 @@ coverage/
 *.log
 .DS_Store
 
+# Local publishing tooling, kept off the remote
+scripts/publish-github.sh
+
 # Bootstrap working files
 scripts/.bootstrap-checkpoint.json
 scripts/data/
